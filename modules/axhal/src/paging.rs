@@ -1,10 +1,10 @@
 //! Page table manipulation.
 
-use core::cell::OnceCell;
 use axalloc::global_allocator;
+use core::cell::OnceCell;
 use page_table::PagingIf;
 
-use crate::arch::{write_page_table_root, sync_kernel_mappings};
+use crate::arch::{sync_kernel_mappings, write_page_table_root};
 use crate::mem::{phys_to_virt, virt_to_phys, MemRegionFlags, PhysAddr, VirtAddr, PAGE_SIZE_4K};
 
 #[doc(no_inline)]

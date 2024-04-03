@@ -176,6 +176,7 @@ dependencies = [
 name = "arceos_api"
 version = "0.1.0"
 dependencies = [
+ "arch_boot",
  "axalloc",
  "axconfig",
  "axdisplay",
@@ -188,7 +189,6 @@ dependencies = [
  "axnet",
  "axruntime",
  "axtask",
- "mkboot",
 ]
 
 [[package]]
@@ -212,6 +212,30 @@ dependencies = [
  "lazy_static",
  "spin 0.9.8",
  "static_assertions",
+]
+
+[[package]]
+name = "arch_boot"
+version = "0.1.0"
+dependencies = [
+ "aarch64-cpu",
+ "arm_gic",
+ "arm_pl011",
+ "axalloc",
+ "axconfig",
+ "axhal",
+ "axtrap",
+ "cfg-if",
+ "dw_apb_uart",
+ "log",
+ "mkboot",
+ "raw-cpuid 11.0.1",
+ "riscv",
+ "sbi-rt",
+ "tock-registers",
+ "x2apic",
+ "x86",
+ "x86_64",
 ]
 
 [[package]]
@@ -302,6 +326,7 @@ dependencies = [
 name = "axfeat"
 version = "0.1.0"
 dependencies = [
+ "arch_boot",
  "axalloc",
  "axdisplay",
  "axdriver",
@@ -312,7 +337,6 @@ dependencies = [
  "axruntime",
  "axsync",
  "axtask",
- "mkboot",
  "spinlock",
 ]
 

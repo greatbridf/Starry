@@ -32,8 +32,7 @@ pub fn openat(_dtd: usize, filename: &str, _flags: usize, _mode: usize) -> usize
 pub fn read(fd: usize, ubuf: &mut [u8]) -> usize {
     let count = ubuf.len();
     let current = task::current();
-    let filetable = current.filetable.lock();
-    let file = filetable.get_file(fd).unwrap();
+    let file = current.filetable.lock().get_file(fd).unwrap();
     let mut pos = 0;
     assert!(count < 1024);
     let mut kbuf: [u8; 1024] = [0; 1024];

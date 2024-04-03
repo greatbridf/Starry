@@ -8,9 +8,12 @@ extern crate axlog;
 #[cfg(all(target_os = "none", not(test)))]
 mod lang_items;
 
+use axerrno::{LinuxError, LinuxResult};
 use core::sync::atomic::{AtomicUsize, Ordering};
 use fork::{user_mode_thread, CloneFlags};
-use axerrno::{LinuxError, LinuxResult};
+
+#[cfg(feature = "smp")]
+mod mp;
 
 static INITED_CPUS: AtomicUsize = AtomicUsize::new(0);
 
@@ -59,7 +62,7 @@ impl axlog::LogIf for LogIfImpl {
 
 /// The main entry point for monolithic kernel startup.
 #[cfg_attr(not(test), no_mangle)]
-pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
+pub fn rust_main(cpu_id: usize, dtb: usize) -> ! {
     ax_println!("{}", LOGO);
     ax_println!(
         "\
@@ -81,10 +84,10 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
     axlog::init();
     axlog::set_max_level(option_env!("AX_LOG").unwrap_or("")); // no effect if set `log-level-*` features
     info!("Logging is enabled.");
-    info!("MacroKernel is starting: Primary CPU {} started, dtb = {:#x}.", cpu_id, dtb);
-
-    info!("Initialize trap|irq|syscall vector...");
-    axtrap::init_trap_vector();
+    info!(
+        "MacroKernel is starting: Primary CPU {} started, dtb = {:#x}.",
+        cpu_id, dtb
+    );
 
     info!("Found physcial memory regions:");
     for r in axhal::mem::memory_regions() {
@@ -96,8 +99,6 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
             r.flags
         );
     }
-
-    init_allocator();
 
     info!("Initialize kernel page table...");
     remap_kernel_memory().expect("remap kernel memoy failed");
@@ -135,38 +136,10 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
     panic!("Never reach here!");
 }
 
-fn init_allocator() {
-    use axhal::mem::{memory_regions, phys_to_virt, MemRegionFlags};
-
-    info!("Initialize global memory allocator...");
-    info!("  use {} allocator.", axalloc::global_allocator().name());
-
-    let mut max_region_size = 0;
-    let mut max_region_paddr = 0.into();
-    for r in memory_regions() {
-        if r.flags.contains(MemRegionFlags::FREE) && r.size > max_region_size {
-            max_region_size = r.size;
-            max_region_paddr = r.paddr;
-        }
-    }
-    for r in memory_regions() {
-        if r.flags.contains(MemRegionFlags::FREE) && r.paddr == max_region_paddr {
-            axalloc::global_init(phys_to_virt(r.paddr).as_usize(), r.size);
-            break;
-        }
-    }
-    for r in memory_regions() {
-        if r.flags.contains(MemRegionFlags::FREE) && r.paddr != max_region_paddr {
-            axalloc::global_add_memory(phys_to_virt(r.paddr).as_usize(), r.size)
-                .expect("add heap memory region failed");
-        }
-    }
-}
-
 fn remap_kernel_memory() -> Result<(), axhal::paging::PagingError> {
     use axhal::mem::{memory_regions, phys_to_virt};
     use axhal::paging::PageTable;
-    use axhal::paging::{setup_page_table_root, reuse_page_table_root};
+    use axhal::paging::{reuse_page_table_root, setup_page_table_root};
 
     if axhal::cpu::this_cpu_is_bsp() {
         let mut kernel_page_table = PageTable::try_new()?;
