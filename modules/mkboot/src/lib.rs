@@ -4,6 +4,9 @@
 
 #[macro_use]
 extern crate axlog;
+extern crate alloc;
+use alloc::string::String;
+use alloc::vec::Vec;
 
 #[cfg(all(target_os = "none", not(test)))]
 mod lang_items;
@@ -11,6 +14,8 @@ mod lang_items;
 use axerrno::{LinuxError, LinuxResult};
 use core::sync::atomic::{AtomicUsize, Ordering};
 use fork::{user_mode_thread, CloneFlags};
+use axtype::DtbInfo;
+use axhal::mem::{phys_to_virt, memory_regions};
 
 #[cfg(feature = "smp")]
 mod mp;
@@ -131,13 +136,49 @@ pub fn rust_main(cpu_id: usize, dtb: usize) -> ! {
         core::hint::spin_loop();
     }
 
-    rest_init();
+    start_kernel(dtb).expect("Fatal error!");
 
     panic!("Never reach here!");
 }
 
+fn start_kernel(dtb: usize) -> LinuxResult {
+    let dtb_info = setup_arch(dtb)?;
+    rest_init(dtb_info);
+    Ok(())
+}
+
+fn setup_arch(dtb: usize) -> LinuxResult<DtbInfo> {
+    parse_dtb(dtb)
+}
+
+fn parse_dtb(dtb_pa: usize) -> LinuxResult<DtbInfo> {
+    let mut dtb_info = DtbInfo::new();
+    let mut cb = |name: String, addr_cells: usize, size_cells: usize, props: Vec<(String, Vec<u8>)>| {
+        if name == "chosen" {
+            for prop in props {
+                match prop.0.as_str() {
+                    "bootargs" => {
+                        if let Ok(cmd) = core::str::from_utf8(&prop.1) {
+                            let cmd = cmd.trim_end_matches(char::from(0));
+                            if cmd.len() > 0 {
+                                dtb_info.set_init_cmd(cmd);
+                            }
+                        }
+                    },
+                    _ => (),
+                }
+            }
+        }
+    };
+
+    let dtb_va = phys_to_virt(dtb_pa.into());
+    let dt = axdtb::DeviceTree::init(dtb_va.into()).unwrap();
+    dt.parse(dt.off_struct, 0, 0, &mut cb).unwrap();
+
+    Ok(dtb_info)
+}
+
 fn remap_kernel_memory() -> Result<(), axhal::paging::PagingError> {
-    use axhal::mem::{memory_regions, phys_to_virt};
     use axhal::paging::PageTable;
     use axhal::paging::{reuse_page_table_root, setup_page_table_root};
 
@@ -190,11 +231,11 @@ fn init_interrupt() {
     axhal::arch::enable_irqs();
 }
 
-fn rest_init() {
+fn rest_init(dtb_info: DtbInfo) {
     error!("rest_init ...");
     let pid = user_mode_thread(
         move || {
-            kernel_init();
+            kernel_init(dtb_info);
         },
         CloneFlags::CLONE_FS,
     );
@@ -221,7 +262,17 @@ fn cpu_startup_entry() {
 }
 
 /// Prepare for entering first user app.
-fn kernel_init() {
+fn kernel_init(dtb_info: DtbInfo) {
+    /*
+     * We try each of these until one succeeds.
+     *
+     * The Bourne shell can be used instead of init if we are
+     * trying to recover a really broken machine.
+     */
+    if let Some(cmd) = dtb_info.get_init_cmd() {
+        panic!("Requested init {} failed.", cmd);
+    }
+
     try_to_run_init_process("/sbin/init").expect("No working init found.");
 }
 

@@ -316,6 +316,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "axdtb"
+version = "0.1.0"
+dependencies = [
+ "axtype",
+]
+
+[[package]]
 name = "axerrno"
 version = "0.1.0"
 dependencies = [
@@ -593,6 +600,10 @@ dependencies = [
  "mmap",
  "riscv",
 ]
+
+[[package]]
+name = "axtype"
+version = "0.1.0"
 
 [[package]]
 name = "az"
@@ -1428,12 +1439,14 @@ dependencies = [
  "axalloc",
  "axconfig",
  "axdriver",
+ "axdtb",
  "axerrno",
  "axhal",
  "axlog",
  "axmount",
  "axsyscall",
  "axtrap",
+ "axtype",
  "crate_interface",
  "exec",
  "fork",

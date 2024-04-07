@@ -26,3 +26,5 @@ kernel_guard = { path = "../../crates/kernel_guard", optional = true }
 fork = { path = "../fork" }
 exec = { path = "../exec" }
 axerrno = { path = "../../crates/axerrno" }
+axtype = { path = "../../crates/axtype" }
+axdtb = { path = "../../crates/axdtb" }

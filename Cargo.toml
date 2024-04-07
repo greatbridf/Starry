@@ -83,8 +83,11 @@ members = [
     "modules/filetable",
     "modules/mkboot",
     "modules/fileops",
-    "modules/axtrap", 
+    "modules/axtrap",
     "modules/arch_boot",
+
+    "crates/axtype",
+    "crates/axdtb",
 ]
 
 [profile.release]

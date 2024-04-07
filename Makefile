@@ -48,6 +48,7 @@ DISK_IMG ?= disk.img
 QEMU_LOG ?= y
 NET_DUMP ?= n
 NET_DEV ?= user
+INIT_CMD ?=
 
 # Network options
 IP ?= 10.0.2.15

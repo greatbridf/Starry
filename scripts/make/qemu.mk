@@ -26,6 +26,10 @@ qemu_args-aarch64 := \
 
 qemu_args-y := -m 128M -smp $(SMP) $(qemu_args-$(ARCH))
 
+ifneq ($(INIT_CMD), )
+  qemu_args-y += -append "init=$(INIT_CMD)"
+endif
+
 qemu_args-$(BLK) += \
   -device virtio-blk-$(vdev-suffix),drive=disk0 \
   -drive id=disk0,if=none,format=raw,file=$(DISK_IMG)
