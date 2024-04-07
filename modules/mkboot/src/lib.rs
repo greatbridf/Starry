@@ -159,10 +159,7 @@ fn parse_dtb(dtb_pa: usize) -> LinuxResult<DtbInfo> {
                 match prop.0.as_str() {
                     "bootargs" => {
                         if let Ok(cmd) = core::str::from_utf8(&prop.1) {
-                            let cmd = cmd.trim_end_matches(char::from(0));
-                            if cmd.len() > 0 {
-                                dtb_info.set_init_cmd(cmd);
-                            }
+                            parse_cmdline(cmd, &mut dtb_info);
                         }
                     },
                     _ => (),
@@ -176,6 +173,15 @@ fn parse_dtb(dtb_pa: usize) -> LinuxResult<DtbInfo> {
     dt.parse(dt.off_struct, 0, 0, &mut cb).unwrap();
 
     Ok(dtb_info)
+}
+
+fn parse_cmdline(cmd: &str, dtb_info: &mut DtbInfo) {
+    let cmd = cmd.trim_end_matches(char::from(0));
+    if cmd.len() > 0 {
+        assert!(cmd.starts_with("init="));
+        let cmd = cmd.strip_prefix("init=").unwrap();
+        dtb_info.set_init_cmd(cmd);
+    }
 }
 
 fn remap_kernel_memory() -> Result<(), axhal::paging::PagingError> {
@@ -270,7 +276,9 @@ fn kernel_init(dtb_info: DtbInfo) {
      * trying to recover a really broken machine.
      */
     if let Some(cmd) = dtb_info.get_init_cmd() {
-        panic!("Requested init {} failed.", cmd);
+        run_init_process(cmd)
+            .unwrap_or_else(|_| panic!("Requested init {} failed.", cmd));
+        return;
     }
 
     try_to_run_init_process("/sbin/init").expect("No working init found.");
