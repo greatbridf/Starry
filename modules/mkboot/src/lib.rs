@@ -153,7 +153,7 @@ fn setup_arch(dtb: usize) -> LinuxResult<DtbInfo> {
 
 fn parse_dtb(dtb_pa: usize) -> LinuxResult<DtbInfo> {
     let mut dtb_info = DtbInfo::new();
-    let mut cb = |name: String, addr_cells: usize, size_cells: usize, props: Vec<(String, Vec<u8>)>| {
+    let mut cb = |name: String, _addr_cells: usize, _size_cells: usize, props: Vec<(String, Vec<u8>)>| {
         if name == "chosen" {
             for prop in props {
                 match prop.0.as_str() {

@@ -119,7 +119,7 @@ pub fn get_auxv_vector(
 }
 */
 
-fn get_arg_page(_entry: usize) -> LinuxResult<usize> {
+fn get_arg_page(_entry: usize, args: &[&str]) -> LinuxResult<usize> {
     //let auxv = get_auxv_vector(entry);
 
     let va = TASK_SIZE - STACK_SIZE;
@@ -131,9 +131,6 @@ fn get_arg_page(_entry: usize) -> LinuxResult<usize> {
     stack.push(random_str.as_slice());
     //let random_str_pos = stack.get_sp();
 
-    let arg1 = "/sbin/init";
-    let arg0 = "/lib/ld-linux-riscv64-lp64d.so.1";
-    let args = [arg0, arg1];
     let argv_slice: Vec<_> = args
         .iter()
         .map(|arg| stack.push_str(arg))
@@ -167,7 +164,7 @@ fn bprm_execve(
     filename: &str, flags: usize, load_bias: usize
 ) -> LinuxResult {
     let file = do_open_execat(filename, flags)?;
-    exec_binprm(file, load_bias)
+    exec_binprm(file, load_bias, filename)
 }
 
 fn do_open_execat(filename: &str, _flags: usize) -> LinuxResult<FileRef> {
@@ -180,11 +177,14 @@ fn do_open_execat(filename: &str, _flags: usize) -> LinuxResult<FileRef> {
     Ok(Arc::new(SpinNoIrq::new(file)))
 }
 
-fn exec_binprm(file: FileRef, load_bias: usize) -> LinuxResult {
-    load_elf_binary(file, load_bias)
+fn exec_binprm(file: FileRef, load_bias: usize, filename: &str) -> LinuxResult {
+    load_elf_binary(file, load_bias, filename)
 }
 
-fn load_elf_interp(file: FileRef, load_bias: usize, app_entry: usize) -> LinuxResult {
+fn load_elf_interp(
+    file: FileRef, load_bias: usize, app_entry: usize,
+    interp_name: &str, bin_name: &str,
+) -> LinuxResult {
     let (phdrs, entry) = load_elf_phdrs(file.clone())?;
 
     let mut elf_bss: usize = 0;
@@ -213,7 +213,8 @@ fn load_elf_interp(file: FileRef, load_bias: usize, app_entry: usize) -> LinuxRe
     elf_bss += load_bias;
     elf_brk += load_bias;
 
-    let sp = get_arg_page(app_entry)?;
+    let args = [interp_name, bin_name];
+    let sp = get_arg_page(app_entry, &args)?;
 
     error!("set brk...");
     set_brk(elf_bss, elf_brk);
@@ -226,7 +227,7 @@ fn load_elf_interp(file: FileRef, load_bias: usize, app_entry: usize) -> LinuxRe
     Ok(())
 }
 
-fn load_elf_binary(file: FileRef, load_bias: usize) -> LinuxResult {
+fn load_elf_binary(file: FileRef, load_bias: usize, filename: &str) -> LinuxResult {
     let (phdrs, entry) = load_elf_phdrs(file.clone())?;
 
     for phdr in &phdrs {
@@ -243,7 +244,7 @@ fn load_elf_binary(file: FileRef, load_bias: usize) -> LinuxResult {
             // Todo: check elf_ex->e_type == ET_DYN
             let load_bias = align_down_4k(ELF_ET_DYN_BASE);
             let file = do_open_execat(path, 0)?;
-            return load_elf_interp(file, load_bias, entry);
+            return load_elf_interp(file, load_bias, entry, path, filename);
         }
     }
 
@@ -273,7 +274,8 @@ fn load_elf_binary(file: FileRef, load_bias: usize) -> LinuxResult {
     elf_bss += load_bias;
     elf_brk += load_bias;
 
-    let sp = get_arg_page(entry)?;
+    let args = [filename];
+    let sp = get_arg_page(entry, &args)?;
 
     error!("set brk...");
     set_brk(elf_bss, elf_brk);
