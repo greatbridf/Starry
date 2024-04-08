@@ -115,7 +115,6 @@ impl MmStruct {
             pos += ret;
         }
         buf[pos..].fill(0);
-        info!("OK");
     }
 }
 
