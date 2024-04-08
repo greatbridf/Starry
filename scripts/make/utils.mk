@@ -31,7 +31,7 @@ define build_linux_image
   @sudo cp ./payload/ld-linux-riscv64-lp64d.so.1 ./mnt/lib/
   @sudo cp ./payload/libc.so.6 ./mnt/lib/
   @sudo cp ./payload/init ./mnt/sbin/init
-  @sudo cp ./payload/testcases/* ./mnt/testcases/
+  -@sudo cp ./payload/testcases/* ./mnt/testcases/
   ls -l ./mnt/lib
   ls -l ./mnt/testcases
   @sudo umount ./mnt
