@@ -94,7 +94,6 @@ pub fn do_syscall(args: SyscallArgs, sysno: usize) -> usize {
         },
         _ => {
             panic!("Unsupport sysno: {}", sysno);
-            0
         }
     }
 }
@@ -166,7 +165,7 @@ pub fn get_user_str(ptr: usize) -> String {
     s
 }
 
-fn linux_syscall_faccessat(args: SyscallArgs) -> usize {
+fn linux_syscall_faccessat(_args: SyscallArgs) -> usize {
     warn!("linux_syscall_faccessat");
     0
 }
@@ -234,57 +233,57 @@ fn linux_syscall_mmap(args: SyscallArgs) -> usize {
     mmap::mmap(va, len, prot, flags, fd, offset).unwrap()
 }
 
-fn linux_syscall_mprotect(args: SyscallArgs) -> usize {
+fn linux_syscall_mprotect(_args: SyscallArgs) -> usize {
     warn!("impl linux_syscall_mprotect");
     0
 }
 
-fn linux_syscall_set_tid_address(args: SyscallArgs) -> usize {
+fn linux_syscall_set_tid_address(_args: SyscallArgs) -> usize {
     warn!("impl linux_syscall_set_tid_address");
     0
 }
 
-fn linux_syscall_set_robust_list(args: SyscallArgs) -> usize {
+fn linux_syscall_set_robust_list(_args: SyscallArgs) -> usize {
     warn!("impl linux_syscall_set_robust_list");
     0
 }
 
-fn linux_syscall_prlimit64(args: SyscallArgs) -> usize {
+fn linux_syscall_prlimit64(_args: SyscallArgs) -> usize {
     warn!("impl linux_syscall_prlimit64");
     0
 }
 
-fn linux_syscall_getrandom(args: SyscallArgs) -> usize {
+fn linux_syscall_getrandom(_args: SyscallArgs) -> usize {
     warn!("impl linux_syscall_getrandom");
     0
 }
 
-fn linux_syscall_clock_gettime(args: SyscallArgs) -> usize {
+fn linux_syscall_clock_gettime(_args: SyscallArgs) -> usize {
     warn!("impl linux_syscall_clock_gettime");
     0
 }
 
-fn linux_syscall_rt_sigprocmask(args: SyscallArgs) -> usize {
+fn linux_syscall_rt_sigprocmask(_args: SyscallArgs) -> usize {
     warn!("impl linux_syscall_rt_sigprocmask");
     0
 }
 
-fn linux_syscall_rt_sigaction(args: SyscallArgs) -> usize {
+fn linux_syscall_rt_sigaction(_args: SyscallArgs) -> usize {
     warn!("impl linux_syscall_rt_sigaction");
     0
 }
 
-fn linux_syscall_gettid(args: SyscallArgs) -> usize {
+fn linux_syscall_gettid(_args: SyscallArgs) -> usize {
     warn!("impl linux_syscall_gettid");
     0
 }
 
-fn linux_syscall_getpid(args: SyscallArgs) -> usize {
+fn linux_syscall_getpid(_args: SyscallArgs) -> usize {
     warn!("impl linux_syscall_getpid");
     0
 }
 
-fn linux_syscall_tgkill(args: SyscallArgs) -> usize {
+fn linux_syscall_tgkill(_args: SyscallArgs) -> usize {
     warn!("impl linux_syscall_tgkill");
     0
 }
