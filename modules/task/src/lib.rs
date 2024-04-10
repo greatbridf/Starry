@@ -67,7 +67,7 @@ pub struct TaskStruct {
     /* CPU-specific state of this task: */
     pub thread: UnsafeCell<ThreadStruct>,
 
-    pub sched_info: RefCell<SchedInfo>,
+    pub sched_info: Arc<RefCell<SchedInfo>>,
 }
 
 /////////////////////////////////
@@ -107,7 +107,7 @@ impl TaskStruct {
             kstack: None,
             thread: UnsafeCell::new(ThreadStruct::new()),
 
-            sched_info: RefCell::new(SchedInfo::new()),
+            sched_info: Arc::new(RefCell::new(SchedInfo::new())),
         }
     }
 
@@ -165,10 +165,13 @@ pub struct CurrentTask(ManuallyDrop<TaskRef>);
 impl CurrentTask {
     pub(crate) fn try_get() -> Option<Self> {
         let ptr: *const TaskStruct = axhal::cpu::current_task_ptr();
+        let ptr = unsafe { (*ptr).sched_info.borrow().cyclic as *const TaskStruct };
+        /*
         unsafe {
             info!("---------- cyclic {:#X}", (*ptr).sched_info.borrow().cyclic);
         }
         info!("---------- ptr {:#X}", ptr as usize);
+        */
         if !ptr.is_null() {
             Some(Self(unsafe { ManuallyDrop::new(TaskRef::from_raw(ptr)) }))
         } else {
