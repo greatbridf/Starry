@@ -72,8 +72,8 @@ impl KernelCloneArgs {
     /// that must be done for every newly created context, then puts the task
     /// on the runqueue and wakes it.
     fn wake_up_new_task(&self, task: TaskRef) {
-        let rq = run_queue::task_rq(&task);
-        rq.lock().activate_task(task.clone());
+        let rq = run_queue::task_rq(&task.sched_info);
+        rq.lock().activate_task(task.sched_info.clone());
         debug!("wakeup the new task[{}].", task.pid());
     }
 

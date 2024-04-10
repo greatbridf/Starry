@@ -258,7 +258,7 @@ fn rest_init(dtb_info: DtbInfo) {
 
 fn schedule_preempt_disabled() {
     let task = task::current();
-    let rq = run_queue::task_rq(&task);
+    let rq = run_queue::task_rq(&task.sched_info);
     rq.lock().resched(false);
     unimplemented!("schedule_preempt_disabled()");
 }

@@ -1,6 +1,6 @@
 #![no_std]
 
-use task::{current, TaskRef};
+use taskctx::CtxRef;
 use crate::run_queue::{RUN_QUEUE, AxRunQueue};
 use spinlock::SpinNoIrq;
 
@@ -13,7 +13,7 @@ pub fn init() {
     RUN_QUEUE.init_by(AxRunQueue::new());
 }
 
-pub fn task_rq(_task: &TaskRef) -> &SpinNoIrq<AxRunQueue> {
+pub fn task_rq(_task: &CtxRef) -> &SpinNoIrq<AxRunQueue> {
     &RUN_QUEUE
 }
 

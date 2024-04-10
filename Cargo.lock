@@ -1815,7 +1815,6 @@ dependencies = [
  "mm",
  "scheduler",
  "spinlock",
- "task",
  "taskctx",
 ]
 

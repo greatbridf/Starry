@@ -8,7 +8,7 @@ use alloc::sync::Arc;
 use core::ops::Deref;
 use core::mem::ManuallyDrop;
 use core::{alloc::Layout, cell::UnsafeCell, ptr::NonNull};
-use core::sync::atomic::{AtomicUsize, Ordering};
+use core::sync::atomic::AtomicUsize;
 use axhal::arch::TaskContext as ThreadStruct;
 use axhal::mem::VirtAddr;
 use axhal::trap::{TRAPFRAME_SIZE, STACK_ALIGN};
@@ -61,6 +61,9 @@ pub struct SchedInfo {
     pub thread: UnsafeCell<ThreadStruct>,
 }
 
+unsafe impl Send for SchedInfo {}
+unsafe impl Sync for SchedInfo {}
+
 impl SchedInfo {
     pub fn new(pid: Pid) -> Self {
         Self {
@@ -84,6 +87,10 @@ impl SchedInfo {
 
     pub fn tgid(&self) -> usize {
         self.tgid
+    }
+
+    pub fn try_pgd(&self) -> Option<Arc<SpinNoIrq<PageTable>>> {
+        self.pgd.as_ref().and_then(|pgd| Some(pgd.clone()))
     }
 
     pub fn dup_sched_info(&self, pid: Pid) -> Arc<Self> {
@@ -131,6 +138,23 @@ impl CurrentCtx {
 
     pub(crate) fn get() -> Self {
         Self::try_get().expect("current sched info is uninitialized")
+    }
+
+    pub fn ptr_eq(&self, other: &CtxRef) -> bool {
+        Arc::ptr_eq(&self, other)
+    }
+
+    /// Converts [`CurrentTask`] to [`TaskRef`].
+    pub fn as_task_ref(&self) -> &CtxRef {
+        &self.0
+    }
+
+    pub unsafe fn set_current(prev: Self, next: CtxRef) {
+        info!("CurrentCtx::set_current...");
+        let Self(arc) = prev;
+        ManuallyDrop::into_inner(arc); // `call Arc::drop()` to decrease prev task reference count.
+        let ptr = Arc::into_raw(next.clone());
+        axhal::cpu::set_current_task_ptr(ptr);
     }
 }
 

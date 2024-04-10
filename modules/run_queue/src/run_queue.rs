@@ -1,7 +1,6 @@
 use lazy_init::LazyInit;
 use scheduler::BaseScheduler;
 use alloc::sync::Arc;
-use task::CurrentTask;
 use taskctx::switch_mm;
 //use task::{CurrentTask, TaskState};
 /*
@@ -10,21 +9,11 @@ use alloc::collections::VecDeque;
 use crate::{AxTaskRef, Scheduler, TaskInner, WaitQueue};
 */
 use spinlock::SpinNoIrq;
-use task::TaskRef;
+use taskctx::{CtxRef, CurrentCtx};
 use core::sync::atomic::Ordering;
 
-cfg_if::cfg_if! {
-    if #[cfg(feature = "sched_rr")] {
-        const MAX_TIME_SLICE: usize = 5;
-        type Scheduler = scheduler::RRScheduler<TaskRef, MAX_TIME_SLICE>;
-    } else if #[cfg(feature = "sched_cfs")] {
-        type SchedItem = scheduler::CFSTask<TaskRef>;
-        type Scheduler = scheduler::CFScheduler<TaskRef>;
-    } else {
-        // If no scheduler features are set, use FIFO as the default.
-        type Scheduler = scheduler::FifoScheduler<TaskRef>;
-    }
-}
+type SchedItem = scheduler::CFSTask<CtxRef>;
+type Scheduler = scheduler::CFScheduler<CtxRef>;
 
 // TODO: per-CPU
 pub(crate) static RUN_QUEUE: LazyInit<SpinNoIrq<AxRunQueue>> = LazyInit::new();
@@ -49,19 +38,19 @@ impl AxRunQueue {
         SpinNoIrq::new(Self { scheduler })
     }
 
-    pub fn activate_task(&mut self, task: TaskRef) {
+    pub fn activate_task(&mut self, task: CtxRef) {
         self.add_task(task)
     }
 
-    pub fn add_task(&mut self, task: TaskRef) {
+    pub fn add_task(&mut self, task: CtxRef) {
         debug!("task spawn: {}", task.pid());
         //assert!(task.is_ready());
-        let item = Arc::new(SchedItem::new(task));
+        let item = Arc::new(SchedItem::new(task.clone()));
         self.scheduler.add_task(item);
     }
 
     pub fn scheduler_timer_tick(&mut self) {
-        let curr = task::current();
+        let curr = taskctx::current_ctx();
         if self.scheduler.task_tick(
             &Arc::new(SchedItem::new(curr.as_task_ref().clone()))
         ) {
@@ -176,13 +165,13 @@ impl AxRunQueue {
     /// Common reschedule subroutine. If `preempt`, keep current task's time
     /// slice, otherwise reset it.
     pub fn resched(&mut self, preempt: bool) {
-        let prev = crate::current();
+        let prev = taskctx::current_ctx();
         self.scheduler.put_prev_task(Arc::new(SchedItem::new(prev.clone())), preempt);
         let next = self.scheduler.pick_next_task().unwrap();
         self.switch_to(prev, next.inner().clone());
     }
 
-    fn switch_to(&mut self, prev_task: CurrentTask, next_task: TaskRef) {
+    fn switch_to(&mut self, prev_task: CurrentCtx, next_task: CtxRef) {
         trace!(
             "context switch: {} -> {}",
             prev_task.pid(),
@@ -200,27 +189,27 @@ impl AxRunQueue {
         //   user ->   user   switch
         // kernel -> kernel   lazy + transfer active
         //   user -> kernel   lazy + mmgrab_lazy_tlb() active
-        match next_task.try_mm() {
-            Some(ref next_mm) => {
+        match next_task.try_pgd() {
+            Some(ref next_pgd) => {
                 switch_mm(
-                    prev_task.sched_info.active_mm_id.load(Ordering::SeqCst),
-                    next_task.sched_info.mm_id.load(Ordering::SeqCst),
-                    next_mm.lock().pgd()
+                    prev_task.active_mm_id.load(Ordering::SeqCst),
+                    next_task.mm_id.load(Ordering::SeqCst),
+                    next_pgd.clone()
                 );
             },
             None => {
                 error!("###### {} {};",
-                   prev_task.sched_info.active_mm_id.load(Ordering::SeqCst),
-                   next_task.sched_info.active_mm_id.load(Ordering::SeqCst));
+                   prev_task.active_mm_id.load(Ordering::SeqCst),
+                   next_task.active_mm_id.load(Ordering::SeqCst));
 
-                next_task.sched_info.active_mm_id.store(
-                    prev_task.sched_info.active_mm_id.load(Ordering::SeqCst),
+                next_task.active_mm_id.store(
+                    prev_task.active_mm_id.load(Ordering::SeqCst),
                     Ordering::SeqCst
                 );
             }
         }
-        if prev_task.try_mm().is_none() {
-            prev_task.sched_info.active_mm_id.store(0, Ordering::SeqCst);
+        if prev_task.try_pgd().is_none() {
+            prev_task.active_mm_id.store(0, Ordering::SeqCst);
         }
 
         unsafe {
@@ -232,7 +221,7 @@ impl AxRunQueue {
             assert!(Arc::strong_count(&prev_task) > 1);
             assert!(Arc::strong_count(&next_task) >= 1);
 
-            CurrentTask::set_current(prev_task, next_task);
+            CurrentCtx::set_current(prev_task, next_task);
             (*prev_ctx_ptr).switch_to(&*next_ctx_ptr);
         }
     }
