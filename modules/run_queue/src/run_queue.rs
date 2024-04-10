@@ -204,7 +204,8 @@ impl AxRunQueue {
             Some(ref next_mm) => {
                 switch_mm(
                     prev_task.active_mm_id.load(Ordering::SeqCst),
-                    next_mm.clone()
+                    next_task.mm_id.load(Ordering::SeqCst),
+                    next_mm.lock().pgd()
                 );
             },
             None => {

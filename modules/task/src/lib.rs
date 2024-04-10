@@ -30,6 +30,7 @@ static NEXT_PID: AtomicUsize = AtomicUsize::new(0);
 
 pub struct TaskStruct {
     mm: Option<Arc<SpinNoIrq<MmStruct>>>,
+    pub mm_id: AtomicUsize,
     pub active_mm_id: AtomicUsize,
     pub fs: Arc<SpinNoIrq<FsStruct>>,
     pub filetable: Arc<SpinNoIrq<FileTable>>,
@@ -46,6 +47,7 @@ impl TaskStruct {
         warn!("\n++++++++++++++++++++++++++++++++++++++ TaskStruct::new pid {}\n", pid);
         let arc = Arc::new(Self {
             mm: None,
+            mm_id: AtomicUsize::new(0),
             active_mm_id: AtomicUsize::new(0),
             fs: Arc::new(SpinNoIrq::new(FsStruct::new())),
             filetable: Arc::new(SpinNoIrq::new(FileTable::new())),
@@ -79,16 +81,22 @@ impl TaskStruct {
     pub fn alloc_mm(&mut self) {
         error!("alloc_mm...");
         assert!(self.mm.is_none());
-        self.mm.replace(Arc::new(SpinNoIrq::new(MmStruct::new())));
-        switch_mm(0, self.mm());
+        let mm = MmStruct::new();
+        let mm_id = mm.id();
+        self.mm.replace(Arc::new(SpinNoIrq::new(mm)));
+        info!("================== mmid {}", mm_id);
+        self.mm_id.store(mm_id, Ordering::Relaxed);
+        switch_mm(0, mm_id, self.mm().lock().pgd());
     }
 
     pub fn dup_task_struct(&self) -> Arc<Self> {
         info!("dup_task_struct ...");
         ///////////////////////
+        // Todo: mm && mm_id should be dup!!!
         let pid = NEXT_PID.fetch_add(1, Ordering::Relaxed);
         let task = Arc::new(Self {
             mm: None,
+            mm_id: AtomicUsize::new(0),
             active_mm_id: AtomicUsize::new(0),
             fs: self.fs.clone(),
             filetable: Arc::new(SpinNoIrq::new(FileTable::new())),

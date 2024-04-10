@@ -14,9 +14,7 @@ use axhal::mem::phys_to_virt;
 use axhal::paging::MappingFlags;
 use axhal::paging::PageTable;
 use axhal::paging::PagingResult;
-use axhal::arch::write_page_table_root0;
 use axio::SeekFrom;
-use core::cell::RefCell;
 use core::sync::atomic::AtomicUsize;
 use core::sync::atomic::Ordering;
 use memory_addr::align_down_4k;
@@ -59,7 +57,7 @@ impl VmAreaStruct {
 pub struct MmStruct {
     id: usize,
     pub vmas: BTreeMap<usize, VmAreaStruct>,
-    pgd: RefCell<PageTable>,
+    pgd: Arc<SpinNoIrq<PageTable>>,
     brk: usize,
 }
 
@@ -68,13 +66,17 @@ impl MmStruct {
         Self {
             id: MM_UNIQUE_ID.fetch_add(1, Ordering::SeqCst),
             vmas: BTreeMap::new(),
-            pgd: RefCell::new(pgd_alloc()),
+            pgd: Arc::new(SpinNoIrq::new(pgd_alloc())),
             brk: 0,
         }
     }
 
+    pub fn pgd(&self) -> Arc<SpinNoIrq<PageTable>> {
+        self.pgd.clone()
+    }
+
     pub fn root_paddr(&self) -> usize {
-        self.pgd.borrow().root_paddr().into()
+        self.pgd.lock().root_paddr().into()
     }
 
     pub fn id(&self) -> usize {
@@ -93,7 +95,7 @@ impl MmStruct {
         let flags =
             MappingFlags::READ | MappingFlags::WRITE | MappingFlags::EXECUTE | MappingFlags::USER;
         self.pgd
-            .borrow_mut()
+            .lock()
             .map_region(va.into(), pa.into(), len, flags, true)
     }
 
