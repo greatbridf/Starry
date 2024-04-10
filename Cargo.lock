@@ -1161,6 +1161,7 @@ dependencies = [
  "axerrno",
  "axhal",
  "bitflags 2.4.0",
+ "kernel_guard",
  "log",
  "memory_addr",
  "run_queue",

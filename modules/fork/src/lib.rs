@@ -3,7 +3,6 @@
 #[macro_use]
 extern crate log;
 extern crate alloc;
-use alloc::sync::Arc;
 use alloc::boxed::Box;
 use alloc::string::String;
 
@@ -88,11 +87,7 @@ impl KernelCloneArgs {
         //copy_sighand();
         //copy_signal();
         //copy_mm();
-        self.copy_thread(&mut task);
-        {
-            let ptr = Arc::into_raw(task.clone());
-            task.sched_info.borrow_mut().cyclic = ptr as usize;
-        }
+        self.copy_thread(task.clone());
         Ok(task)
     }
 
@@ -111,9 +106,9 @@ impl KernelCloneArgs {
         Ok(())
     }
 
-    fn copy_thread(&self, task: &mut TaskRef) {
+    fn copy_thread(&self, task: TaskRef) {
         error!("copy_thread ...");
-        let task = Arc::get_mut(task).expect("userd by other threads!");
+        let task = task::as_task_mut(task);
         assert!(self.entry.is_some());
         task.entry = self.entry;
         let kstack = TaskStack::alloc(align_up_4k(task::THREAD_SIZE));
