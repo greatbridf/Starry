@@ -80,7 +80,7 @@ impl KernelCloneArgs {
     }
 
     fn copy_process(&self, _pid: Option<Pid>, trace: bool) -> LinuxResult<TaskRef> {
-        debug!("copy_process...");
+        info!("copy_process...");
         assert!(!trace);
         let mut task = current().dup_task_struct();
         //copy_files();
@@ -89,6 +89,10 @@ impl KernelCloneArgs {
         //copy_signal();
         //copy_mm();
         self.copy_thread(&mut task);
+        {
+            let ptr = Arc::into_raw(task.clone());
+            task.sched_info.borrow_mut().cyclic = ptr as usize;
+        }
         Ok(task)
     }
 
@@ -147,7 +151,7 @@ pub fn user_mode_thread<F>(f: F, flags: CloneFlags) -> Pid
 where
     F: FnOnce() + 'static,
 {
-    debug!("create a user mode thread ...");
+    info!("create a user mode thread ...");
     assert!((flags.bits() & CloneFlags::CSIGNAL.bits()) == 0);
     let f = Box::into_raw(Box::new(f));
     let args = KernelCloneArgs::new(

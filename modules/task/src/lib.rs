@@ -5,6 +5,7 @@ use core::ops::Deref;
 use core::mem::ManuallyDrop;
 use core::sync::atomic::{AtomicUsize, Ordering};
 use core::{alloc::Layout, cell::UnsafeCell, ptr::NonNull};
+use core::cell::RefCell;
 
 #[macro_use]
 extern crate log;
@@ -65,7 +66,25 @@ pub struct TaskStruct {
     pub kstack: Option<TaskStack>,
     /* CPU-specific state of this task: */
     pub thread: UnsafeCell<ThreadStruct>,
+
+    pub sched_info: RefCell<SchedInfo>,
 }
+
+/////////////////////////////////
+
+pub struct SchedInfo {
+    pub cyclic: usize,
+}
+
+impl SchedInfo {
+    pub fn new() -> Self {
+        Self {
+            cyclic: 0,
+        }
+    }
+}
+
+/////////////////////////////////
 
 unsafe impl Send for TaskStruct {}
 unsafe impl Sync for TaskStruct {}
@@ -73,7 +92,7 @@ unsafe impl Sync for TaskStruct {}
 impl TaskStruct {
     pub fn new() -> Self {
         let pid = NEXT_PID.fetch_add(1, Ordering::Relaxed);
-        error!("pid {}", pid);
+        warn!("\n++++++++++++++++++++++++++++++++++++++ TaskStruct::new pid {}\n", pid);
         Self {
             pid: pid,
             tgid: pid,
@@ -87,6 +106,8 @@ impl TaskStruct {
 
             kstack: None,
             thread: UnsafeCell::new(ThreadStruct::new()),
+
+            sched_info: RefCell::new(SchedInfo::new()),
         }
     }
 
@@ -118,10 +139,11 @@ impl TaskStruct {
     }
 
     pub fn dup_task_struct(&self) -> Arc<Self> {
-        debug!("dup_task_struct ...");
-        let mut tsk = Self::new();
-        tsk.fs = self.fs.clone();
-        Arc::new(tsk)
+        info!("dup_task_struct ...");
+        let mut task = Self::new();
+        task.fs = self.fs.clone();
+        let task = Arc::new(task);
+        task
     }
 
     pub fn get_task_pid(&self) -> Pid {
@@ -143,6 +165,10 @@ pub struct CurrentTask(ManuallyDrop<TaskRef>);
 impl CurrentTask {
     pub(crate) fn try_get() -> Option<Self> {
         let ptr: *const TaskStruct = axhal::cpu::current_task_ptr();
+        unsafe {
+            info!("---------- cyclic {:#X}", (*ptr).sched_info.borrow().cyclic);
+        }
+        info!("---------- ptr {:#X}", ptr as usize);
         if !ptr.is_null() {
             Some(Self(unsafe { ManuallyDrop::new(TaskRef::from_raw(ptr)) }))
         } else {
@@ -212,8 +238,10 @@ pub fn exit(exit_code: i32) -> ! {
 }
 
 pub fn init() {
-    error!("task::start ...");
+    error!("task::init ...");
     let init_task = Arc::new(TaskStruct::new());
     //init_task.set_state(TaskState::Running);
+    let ptr = Arc::into_raw(init_task.clone());
+    init_task.sched_info.borrow_mut().cyclic = ptr as usize;
     unsafe { CurrentTask::init_current(init_task) }
 }
