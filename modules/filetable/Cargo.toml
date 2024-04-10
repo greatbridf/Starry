@@ -7,4 +7,4 @@ edition = "2021"
 
 [dependencies]
 axfile = { path = "../axfile" }
-spinlock = { path = "../../crates/spinlock" }
+mutex = { path = "../mutex" }

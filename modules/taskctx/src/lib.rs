@@ -8,7 +8,7 @@ use alloc::sync::Arc;
 use core::ops::Deref;
 use core::mem::ManuallyDrop;
 use core::{alloc::Layout, cell::UnsafeCell, ptr::NonNull};
-use core::sync::atomic::AtomicUsize;
+use core::sync::atomic::{AtomicUsize, AtomicU8, AtomicBool, Ordering};
 use axhal::arch::TaskContext as ThreadStruct;
 use axhal::mem::VirtAddr;
 use axhal::trap::{TRAPFRAME_SIZE, STACK_ALIGN};
@@ -46,6 +46,29 @@ impl Drop for TaskStack {
     }
 }
 
+/// The possible states of a task.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub(crate) enum TaskState {
+    Running = 1,
+    Ready = 2,
+    Blocked = 3,
+    Exited = 4,
+}
+
+impl From<u8> for TaskState {
+    #[inline]
+    fn from(state: u8) -> Self {
+        match state {
+            1 => Self::Running,
+            2 => Self::Ready,
+            3 => Self::Blocked,
+            4 => Self::Exited,
+            _ => unreachable!(),
+        }
+    }
+}
+
 pub struct SchedInfo {
     pid:    Pid,
     tgid:   Pid,
@@ -56,6 +79,8 @@ pub struct SchedInfo {
 
     pub entry: Option<*mut dyn FnOnce()>,
     pub kstack: Option<TaskStack>,
+    state: AtomicU8,
+    in_wait_queue: AtomicBool,
 
     /* CPU-specific state of this task: */
     pub thread: UnsafeCell<ThreadStruct>,
@@ -76,6 +101,8 @@ impl SchedInfo {
 
             entry: None,
             kstack: None,
+            state: AtomicU8::new(TaskState::Ready as u8),
+            in_wait_queue: AtomicBool::new(false),
 
             thread: UnsafeCell::new(ThreadStruct::new()),
         }
@@ -87,6 +114,21 @@ impl SchedInfo {
 
     pub fn tgid(&self) -> usize {
         self.tgid
+    }
+
+    #[inline]
+    pub(crate) fn state(&self) -> TaskState {
+        self.state.load(Ordering::Acquire).into()
+    }
+
+    #[inline]
+    pub fn is_blocked(&self) -> bool {
+        matches!(self.state(), TaskState::Blocked)
+    }
+
+    #[inline]
+    pub fn set_in_wait_queue(&self, in_wait_queue: bool) {
+        self.in_wait_queue.store(in_wait_queue, Ordering::Release);
     }
 
     pub fn try_pgd(&self) -> Option<Arc<SpinNoIrq<PageTable>>> {

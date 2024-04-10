@@ -86,6 +86,8 @@ members = [
     "modules/axtrap",
     "modules/arch_boot",
     "modules/taskctx",
+    "modules/mutex",
+    "modules/wait_queue",
 
     "crates/axtype",
     "crates/axdtb",

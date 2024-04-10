@@ -10,7 +10,7 @@ use alloc::string::String;
 use axerrno::LinuxError;
 use axfile::fops::File;
 use axfile::fops::OpenOptions;
-use spinlock::SpinNoIrq;
+use mutex::Mutex;
 
 pub fn openat(_dtd: usize, filename: &str, _flags: usize, _mode: usize) -> usize {
     let mut opts = OpenOptions::new();
@@ -24,7 +24,7 @@ pub fn openat(_dtd: usize, filename: &str, _flags: usize, _mode: usize) -> usize
             return (-LinuxError::from(e).code()) as usize;
         },
     };
-    let fd = current.filetable.lock().insert(Arc::new(SpinNoIrq::new(file)));
+    let fd = current.filetable.lock().insert(Arc::new(Mutex::new(file)));
     error!("openat fd {}", fd);
     fd
 }

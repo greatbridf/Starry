@@ -1,13 +1,14 @@
 #![no_std]
 
 use taskctx::CtxRef;
-use crate::run_queue::{RUN_QUEUE, AxRunQueue};
+use crate::run_queue::RUN_QUEUE;
 use spinlock::SpinNoIrq;
 
 #[macro_use]
 extern crate log;
 extern crate alloc;
 mod run_queue;
+pub use run_queue::AxRunQueue;
 
 pub fn init() {
     RUN_QUEUE.init_by(AxRunQueue::new());

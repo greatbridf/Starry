@@ -113,13 +113,15 @@ impl AxRunQueue {
         }
         unreachable!("task exited!");
     }
+    */
 
     pub fn block_current<F>(&mut self, wait_queue_push: F)
     where
-        F: FnOnce(AxTaskRef),
+        F: FnOnce(CtxRef),
     {
-        let curr = crate::current();
-        debug!("task block: {}", curr.id_name());
+        let curr = taskctx::current_ctx();
+        info!("task block: {}", curr.pid());
+        /*
         assert!(curr.is_running());
         assert!(!curr.is_idle());
 
@@ -128,15 +130,16 @@ impl AxRunQueue {
         assert!(curr.can_preempt(1));
 
         curr.set_state(TaskState::Blocked);
+        */
         wait_queue_push(curr.clone());
         self.resched(false);
     }
 
-    pub fn unblock_task(&mut self, task: AxTaskRef, resched: bool) {
-        debug!("task unblock: {}", task.id_name());
+    pub fn unblock_task(&mut self, task: CtxRef, resched: bool) {
+        info!("task unblock: {}", task.pid());
         if task.is_blocked() {
-            task.set_state(TaskState::Ready);
-            self.scheduler.add_task(task); // TODO: priority
+            //task.set_state(TaskState::Ready);
+            self.scheduler.add_task(Arc::new(SchedItem::new(task))); // TODO: priority
             if resched {
                 #[cfg(feature = "preempt")]
                 crate::current().set_preempt_pending(true);
@@ -144,6 +147,7 @@ impl AxRunQueue {
         }
     }
 
+    /*
     #[cfg(feature = "irq")]
     pub fn sleep_until(&mut self, deadline: axhal::time::TimeValue) {
         let curr = crate::current();
