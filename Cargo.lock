@@ -2054,7 +2054,6 @@ dependencies = [
  "axhal",
  "log",
  "memory_addr",
- "mm",
  "spinlock",
 ]
 

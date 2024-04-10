@@ -8,12 +8,12 @@ use alloc::sync::Arc;
 use core::ops::Deref;
 use core::mem::ManuallyDrop;
 use core::{alloc::Layout, cell::UnsafeCell, ptr::NonNull};
+use core::sync::atomic::{AtomicUsize, Ordering};
 use axhal::arch::TaskContext as ThreadStruct;
 use axhal::mem::VirtAddr;
 use axhal::trap::{TRAPFRAME_SIZE, STACK_ALIGN};
 use memory_addr::{align_up_4k, align_down, PAGE_SIZE_4K};
 use spinlock::SpinNoIrq;
-use mm::MmStruct;
 use axhal::arch::write_page_table_root0;
 use axhal::paging::PageTable;
 
@@ -50,6 +50,10 @@ pub struct SchedInfo {
     pid:    Pid,
     tgid:   Pid,
 
+    pgd: Option<Arc<SpinNoIrq<PageTable>>>,
+    pub mm_id: AtomicUsize,
+    pub active_mm_id: AtomicUsize,
+
     pub entry: Option<*mut dyn FnOnce()>,
     pub kstack: Option<TaskStack>,
 
@@ -62,6 +66,10 @@ impl SchedInfo {
         Self {
             pid,
             tgid: pid,
+
+            pgd: None,
+            mm_id: AtomicUsize::new(0),
+            active_mm_id: AtomicUsize::new(0),
 
             entry: None,
             kstack: None,
@@ -82,6 +90,9 @@ impl SchedInfo {
         info!("dup_sched_info...");
         let mut info = SchedInfo::new(pid);
         info.kstack = Some(TaskStack::alloc(align_up_4k(THREAD_SIZE)));
+        info.pgd = self.pgd.clone();
+        info.mm_id = AtomicUsize::new(0);
+        info.active_mm_id = AtomicUsize::new(0);
         Arc::new(info)
     }
 
@@ -139,7 +150,6 @@ pub fn try_current_ctx() -> Option<CurrentCtx> {
 }
 
 pub fn switch_mm(prev_mm_id: usize, next_mm_id: usize, next_pgd: Arc<SpinNoIrq<PageTable>>) {
-    //let locked_next_mm = next_mm.lock();
     if prev_mm_id == next_mm_id {
         return;
     }

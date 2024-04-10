@@ -203,24 +203,24 @@ impl AxRunQueue {
         match next_task.try_mm() {
             Some(ref next_mm) => {
                 switch_mm(
-                    prev_task.active_mm_id.load(Ordering::SeqCst),
-                    next_task.mm_id.load(Ordering::SeqCst),
+                    prev_task.sched_info.active_mm_id.load(Ordering::SeqCst),
+                    next_task.sched_info.mm_id.load(Ordering::SeqCst),
                     next_mm.lock().pgd()
                 );
             },
             None => {
                 error!("###### {} {};",
-                   prev_task.active_mm_id.load(Ordering::SeqCst),
-                   next_task.active_mm_id.load(Ordering::SeqCst));
+                   prev_task.sched_info.active_mm_id.load(Ordering::SeqCst),
+                   next_task.sched_info.active_mm_id.load(Ordering::SeqCst));
 
-                next_task.active_mm_id.store(
-                    prev_task.active_mm_id.load(Ordering::SeqCst),
+                next_task.sched_info.active_mm_id.store(
+                    prev_task.sched_info.active_mm_id.load(Ordering::SeqCst),
                     Ordering::SeqCst
                 );
             }
         }
         if prev_task.try_mm().is_none() {
-            prev_task.active_mm_id.store(0, Ordering::SeqCst);
+            prev_task.sched_info.active_mm_id.store(0, Ordering::SeqCst);
         }
 
         unsafe {
