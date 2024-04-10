@@ -1,5 +1,5 @@
 [package]
-name = "task"
+name = "taskctx"
 version = "0.1.0"
 edition = "2021"
 
@@ -8,9 +8,5 @@ edition = "2021"
 [dependencies]
 log = "0.4"
 axhal = { path = "../axhal" }
-mm = { path = "../mm" }
-fstree = { path = "../fstree" }
-taskctx = { path = "../taskctx" }
-filetable = { path = "../filetable" }
 spinlock = { path = "../../crates/spinlock" }
 memory_addr = { path = "../../crates/memory_addr" }

@@ -20,12 +20,13 @@ use filetable::FileTable;
 use memory_addr::{align_down, PAGE_SIZE_4K};
 use axhal::trap::{TRAPFRAME_SIZE, STACK_ALIGN};
 use crate::tid_map::{register_task, get_task};
+use taskctx::SchedInfo;
+pub use taskctx::Pid;
+pub use taskctx::current_ctx;
 
 mod tid_map;
 
 pub const THREAD_SIZE: usize = 32 * PAGE_SIZE_4K;
-
-pub type Pid = usize;
 
 static NEXT_PID: AtomicUsize = AtomicUsize::new(0);
 
@@ -71,26 +72,6 @@ pub struct TaskStruct {
 
     pub sched_info: Arc<SchedInfo>,
 }
-
-/////////////////////////////////
-
-pub struct SchedInfo {
-    pid: Pid,
-}
-
-impl SchedInfo {
-    pub fn new(pid: Pid) -> Self {
-        Self {
-            pid,
-        }
-    }
-
-    pub fn get_pid(&self) -> Pid {
-        self.pid
-    }
-}
-
-/////////////////////////////////
 
 unsafe impl Send for TaskStruct {}
 unsafe impl Sync for TaskStruct {}
@@ -199,17 +180,9 @@ pub struct CurrentTask(ManuallyDrop<TaskRef>);
 
 impl CurrentTask {
     pub(crate) fn try_get() -> Option<Self> {
-        let ptr: *const SchedInfo = axhal::cpu::current_task_ptr();
-        let pid = unsafe { (*ptr).get_pid() };
-        let task = get_task(pid).expect("try_get None");
-        /*
-        unsafe {
-            info!("---------- cyclic {:#X}", (*ptr).sched_info.borrow().cyclic);
-        }
-        info!("---------- ptr {:#X}", ptr as usize);
-        */
-        if !ptr.is_null() {
-            //Some(Self(unsafe { ManuallyDrop::new(TaskRef::from_raw(ptr)) }))
+        if let Some(ctx) = taskctx::try_current_ctx() {
+            let pid = ctx.get_pid();
+            let task = get_task(pid).expect("try_get None");
             Some(Self(ManuallyDrop::new(task)))
         } else {
             None

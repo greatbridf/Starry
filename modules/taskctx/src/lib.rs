@@ -1,0 +1,63 @@
+#![no_std]
+
+#[macro_use]
+extern crate log;
+extern crate alloc;
+use alloc::sync::Arc;
+
+use core::ops::Deref;
+use core::mem::ManuallyDrop;
+
+pub type Pid = usize;
+
+pub struct SchedInfo {
+    pid: Pid,
+}
+
+impl SchedInfo {
+    pub fn new(pid: Pid) -> Self {
+        Self {
+            pid,
+        }
+    }
+
+    pub fn get_pid(&self) -> Pid {
+        self.pid
+    }
+}
+
+/// The reference type of a task.
+pub type CtxRef = Arc<SchedInfo>;
+
+/// A wrapper of [`TaskCtxRef`] as the current task contex.
+pub struct CurrentCtx(ManuallyDrop<CtxRef>);
+
+impl CurrentCtx {
+    pub(crate) fn try_get() -> Option<Self> {
+        let ptr: *const SchedInfo = axhal::cpu::current_task_ptr();
+        if !ptr.is_null() {
+            Some(Self(unsafe { ManuallyDrop::new(CtxRef::from_raw(ptr)) }))
+        } else {
+            None
+        }
+    }
+
+    pub(crate) fn get() -> Self {
+        Self::try_get().expect("current sched info is uninitialized")
+    }
+}
+
+impl Deref for CurrentCtx {
+    type Target = CtxRef;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+pub fn current_ctx() -> CurrentCtx {
+    CurrentCtx::get()
+}
+
+pub fn try_current_ctx() -> Option<CurrentCtx> {
+    CurrentCtx::try_get()
+}

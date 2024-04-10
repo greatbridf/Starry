@@ -2043,6 +2043,17 @@ dependencies = [
  "memory_addr",
  "mm",
  "spinlock",
+ "taskctx",
+]
+
+[[package]]
+name = "taskctx"
+version = "0.1.0"
+dependencies = [
+ "axhal",
+ "log",
+ "memory_addr",
+ "spinlock",
 ]
 
 [[package]]
