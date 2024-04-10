@@ -12,6 +12,9 @@ use axhal::arch::TaskContext as ThreadStruct;
 use axhal::mem::VirtAddr;
 use axhal::trap::{TRAPFRAME_SIZE, STACK_ALIGN};
 use memory_addr::{align_up_4k, align_down, PAGE_SIZE_4K};
+use spinlock::SpinNoIrq;
+use mm::MmStruct;
+use axhal::arch::write_page_table_root0;
 
 pub const THREAD_SIZE: usize = 32 * PAGE_SIZE_4K;
 
@@ -132,4 +135,16 @@ pub fn current_ctx() -> CurrentCtx {
 
 pub fn try_current_ctx() -> Option<CurrentCtx> {
     CurrentCtx::try_get()
+}
+
+pub fn switch_mm(prev_mm_id: usize, next_mm: Arc<SpinNoIrq<MmStruct>>) {
+    let locked_next_mm = next_mm.lock();
+    if prev_mm_id == locked_next_mm.id() {
+        return;
+    }
+    error!("###### switch prev {} next {}; paddr {:#X}",
+        prev_mm_id, locked_next_mm.id(), locked_next_mm.root_paddr());
+    unsafe {
+        write_page_table_root0(locked_next_mm.root_paddr().into());
+    }
 }

@@ -1816,6 +1816,7 @@ dependencies = [
  "scheduler",
  "spinlock",
  "task",
+ "taskctx",
 ]
 
 [[package]]
@@ -2053,6 +2054,7 @@ dependencies = [
  "axhal",
  "log",
  "memory_addr",
+ "mm",
  "spinlock",
 ]
 

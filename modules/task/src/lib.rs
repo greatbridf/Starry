@@ -14,7 +14,7 @@ use alloc::sync::Arc;
 
 use axhal::arch::TaskContext as ThreadStruct;
 use mm::MmStruct;
-use mm::switch_mm;
+use taskctx::switch_mm;
 use spinlock::SpinNoIrq;
 use fstree::FsStruct;
 use filetable::FileTable;

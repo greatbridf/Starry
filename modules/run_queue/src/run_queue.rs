@@ -2,6 +2,7 @@ use lazy_init::LazyInit;
 use scheduler::BaseScheduler;
 use alloc::sync::Arc;
 use task::CurrentTask;
+use taskctx::switch_mm;
 //use task::{CurrentTask, TaskState};
 /*
 use alloc::collections::VecDeque;
@@ -11,7 +12,6 @@ use crate::{AxTaskRef, Scheduler, TaskInner, WaitQueue};
 use spinlock::SpinNoIrq;
 use task::TaskRef;
 use core::sync::atomic::Ordering;
-use mm::switch_mm;
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "sched_rr")] {

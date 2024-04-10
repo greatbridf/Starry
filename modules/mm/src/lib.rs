@@ -73,7 +73,7 @@ impl MmStruct {
         }
     }
 
-    fn root_paddr(&self) -> usize {
+    pub fn root_paddr(&self) -> usize {
         self.pgd.borrow().root_paddr().into()
     }
 
@@ -115,17 +115,5 @@ impl MmStruct {
             pos += ret;
         }
         buf[pos..].fill(0);
-    }
-}
-
-pub fn switch_mm(prev_mm_id: usize, next_mm: Arc<SpinNoIrq<MmStruct>>) {
-    let locked_next_mm = next_mm.lock();
-    if prev_mm_id == locked_next_mm.id {
-        return;
-    }
-    error!("###### switch prev {} next {}; paddr {:#X}",
-        prev_mm_id, locked_next_mm.id, locked_next_mm.root_paddr());
-    unsafe {
-        write_page_table_root0(locked_next_mm.root_paddr().into());
     }
 }
