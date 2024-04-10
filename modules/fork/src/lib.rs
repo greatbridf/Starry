@@ -107,6 +107,7 @@ impl KernelCloneArgs {
     }
 
     fn copy_thread(&self, task: TaskRef) {
+        use alloc::sync::Arc;
         error!("copy_thread ...");
         let task = task::as_task_mut(task);
         assert!(self.entry.is_some());
@@ -115,7 +116,7 @@ impl KernelCloneArgs {
         task.kstack = Some(kstack);
         let sp = task.pt_regs();
         error!("copy_thread ... kernel_sp: {:#X}", sp);
-        task.thread.get_mut().init(task_entry as usize, sp.into(), 0.into());
+        Arc::get_mut(&mut task.sched_info).unwrap().reset(task_entry as usize, sp.into(), 0.into());
         error!("copy_thread!");
     }
 }

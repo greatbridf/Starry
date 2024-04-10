@@ -1,5 +1,7 @@
 #![no_std]
 #![feature(get_mut_unchecked)]
+#![feature(const_trait_impl)]
+#![feature(effects)]
 
 use core::ops::Deref;
 use core::mem::ManuallyDrop;
@@ -67,8 +69,6 @@ pub struct TaskStruct {
     pub filetable: Arc<SpinNoIrq<FileTable>>,
 
     pub kstack: Option<TaskStack>,
-    /* CPU-specific state of this task: */
-    pub thread: UnsafeCell<ThreadStruct>,
 
     pub sched_info: Arc<SchedInfo>,
 }
@@ -92,7 +92,6 @@ impl TaskStruct {
             filetable: Arc::new(SpinNoIrq::new(FileTable::new())),
 
             kstack: None,
-            thread: UnsafeCell::new(ThreadStruct::new()),
 
             sched_info: Arc::new(SchedInfo::new(pid)),
         });
@@ -143,7 +142,6 @@ impl TaskStruct {
             filetable: Arc::new(SpinNoIrq::new(FileTable::new())),
 
             kstack: None,
-            thread: UnsafeCell::new(ThreadStruct::new()),
 
             sched_info: Arc::new(SchedInfo::new(pid)),
         });
@@ -158,7 +156,7 @@ impl TaskStruct {
 
     #[inline]
     pub const unsafe fn ctx_mut_ptr(&self) -> *mut ThreadStruct {
-        self.thread.get()
+        self.sched_info.ctx_mut_ptr()
     }
 }
 

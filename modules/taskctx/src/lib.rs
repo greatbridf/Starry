@@ -7,22 +7,38 @@ use alloc::sync::Arc;
 
 use core::ops::Deref;
 use core::mem::ManuallyDrop;
+use core::{alloc::Layout, cell::UnsafeCell, ptr::NonNull};
+use axhal::arch::TaskContext as ThreadStruct;
+use axhal::mem::VirtAddr;
 
 pub type Pid = usize;
 
 pub struct SchedInfo {
     pid: Pid,
+
+    /* CPU-specific state of this task: */
+    pub thread: UnsafeCell<ThreadStruct>,
 }
 
 impl SchedInfo {
     pub fn new(pid: Pid) -> Self {
         Self {
             pid,
+            thread: UnsafeCell::new(ThreadStruct::new()),
         }
     }
 
     pub fn get_pid(&self) -> Pid {
         self.pid
+    }
+
+    #[inline]
+    pub const unsafe fn ctx_mut_ptr(&self) -> *mut ThreadStruct {
+        self.thread.get()
+    }
+
+    pub fn reset(&mut self, entry: usize, sp: VirtAddr, v: VirtAddr) {
+        self.thread.get_mut().init(entry, sp, v);
     }
 }
 
