@@ -6,7 +6,6 @@
 use core::ops::Deref;
 use core::mem::ManuallyDrop;
 use core::sync::atomic::{AtomicUsize, Ordering};
-use core::{alloc::Layout, cell::UnsafeCell, ptr::NonNull};
 
 #[macro_use]
 extern crate log;
@@ -19,56 +18,21 @@ use mm::switch_mm;
 use spinlock::SpinNoIrq;
 use fstree::FsStruct;
 use filetable::FileTable;
-use memory_addr::{align_down, PAGE_SIZE_4K};
-use axhal::trap::{TRAPFRAME_SIZE, STACK_ALIGN};
 use crate::tid_map::{register_task, get_task};
 use taskctx::SchedInfo;
 pub use taskctx::Pid;
 pub use taskctx::current_ctx;
+pub use taskctx::{TaskStack, THREAD_SIZE};
 
 mod tid_map;
 
-pub const THREAD_SIZE: usize = 32 * PAGE_SIZE_4K;
-
 static NEXT_PID: AtomicUsize = AtomicUsize::new(0);
 
-pub struct TaskStack {
-    ptr: NonNull<u8>,
-    layout: Layout,
-}
-
-impl TaskStack {
-    pub fn alloc(size: usize) -> Self {
-        let layout = Layout::from_size_align(size, 16).unwrap();
-        Self {
-            ptr: NonNull::new(unsafe { alloc::alloc::alloc(layout) }).unwrap(),
-            layout,
-        }
-    }
-
-    pub const fn top(&self) -> usize {
-        unsafe { core::mem::transmute(self.ptr.as_ptr().add(self.layout.size())) }
-    }
-}
-
-impl Drop for TaskStack {
-    fn drop(&mut self) {
-        unsafe { alloc::alloc::dealloc(self.ptr.as_ptr(), self.layout) }
-    }
-}
-
 pub struct TaskStruct {
-    pid:    Pid,
-    tgid:   Pid,
-
-    pub entry: Option<*mut dyn FnOnce()>,
-
     mm: Option<Arc<SpinNoIrq<MmStruct>>>,
     pub active_mm_id: AtomicUsize,
     pub fs: Arc<SpinNoIrq<FsStruct>>,
     pub filetable: Arc<SpinNoIrq<FileTable>>,
-
-    pub kstack: Option<TaskStack>,
 
     pub sched_info: Arc<SchedInfo>,
 }
@@ -81,17 +45,10 @@ impl TaskStruct {
         let pid = NEXT_PID.fetch_add(1, Ordering::Relaxed);
         warn!("\n++++++++++++++++++++++++++++++++++++++ TaskStruct::new pid {}\n", pid);
         let arc = Arc::new(Self {
-            pid: pid,
-            tgid: pid,
-
-            entry: None,
-
             mm: None,
             active_mm_id: AtomicUsize::new(0),
             fs: Arc::new(SpinNoIrq::new(FsStruct::new())),
             filetable: Arc::new(SpinNoIrq::new(FileTable::new())),
-
-            kstack: None,
 
             sched_info: Arc::new(SchedInfo::new(pid)),
         });
@@ -99,16 +56,16 @@ impl TaskStruct {
         arc
     }
 
-    pub fn pid(&self) -> usize {
-        self.pid
+    pub fn pid(&self) -> Pid {
+        self.sched_info.pid()
     }
 
     pub fn tgid(&self) -> usize {
-        self.tgid
+        self.sched_info.tgid()
     }
 
     pub fn pt_regs(&self) -> usize {
-        self.kstack.as_ref().unwrap().top() - align_down(TRAPFRAME_SIZE, STACK_ALIGN)
+        self.sched_info.pt_regs()
     }
 
     pub fn try_mm(&self) -> Option<Arc<SpinNoIrq<MmStruct>>> {
@@ -131,27 +88,16 @@ impl TaskStruct {
         ///////////////////////
         let pid = NEXT_PID.fetch_add(1, Ordering::Relaxed);
         let task = Arc::new(Self {
-            pid: pid,
-            tgid: pid,
-
-            entry: None,
-
             mm: None,
             active_mm_id: AtomicUsize::new(0),
             fs: self.fs.clone(),
             filetable: Arc::new(SpinNoIrq::new(FileTable::new())),
 
-            kstack: None,
-
-            sched_info: Arc::new(SchedInfo::new(pid)),
+            sched_info: self.sched_info.dup_sched_info(pid),
         });
         register_task(pid, task.clone());
         ///////////////////////
         task
-    }
-
-    pub fn get_task_pid(&self) -> Pid {
-        self.pid
     }
 
     #[inline]
@@ -179,7 +125,7 @@ pub struct CurrentTask(ManuallyDrop<TaskRef>);
 impl CurrentTask {
     pub(crate) fn try_get() -> Option<Self> {
         if let Some(ctx) = taskctx::try_current_ctx() {
-            let pid = ctx.get_pid();
+            let pid = ctx.pid();
             let task = get_task(pid).expect("try_get None");
             Some(Self(ManuallyDrop::new(task)))
         } else {

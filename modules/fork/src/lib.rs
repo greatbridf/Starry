@@ -6,8 +6,7 @@ extern crate alloc;
 use alloc::boxed::Box;
 use alloc::string::String;
 
-use task::{current, TaskRef, Pid, TaskStack};
-use memory_addr::align_up_4k;
+use task::{current, TaskRef, Pid};
 use axerrno::{LinuxResult, LinuxError};
 
 bitflags::bitflags! {
@@ -62,7 +61,7 @@ impl KernelCloneArgs {
         let task = self.copy_process(None, trace)?;
         debug!("sched task fork: pid[{}] -> pid[{}].", task::current().pid(), task.pid());
 
-        let pid = task.get_task_pid();
+        let pid = task.pid();
         self.wake_up_new_task(task);
         Ok(pid)
     }
@@ -107,27 +106,25 @@ impl KernelCloneArgs {
     }
 
     fn copy_thread(&self, task: TaskRef) {
-        use alloc::sync::Arc;
-        error!("copy_thread ...");
-        let task = task::as_task_mut(task);
+        info!("copy_thread ...");
         assert!(self.entry.is_some());
-        task.entry = self.entry;
-        let kstack = TaskStack::alloc(align_up_4k(task::THREAD_SIZE));
-        task.kstack = Some(kstack);
-        let sp = task.pt_regs();
-        error!("copy_thread ... kernel_sp: {:#X}", sp);
-        Arc::get_mut(&mut task.sched_info).unwrap().reset(task_entry as usize, sp.into(), 0.into());
+        use alloc::sync::Arc;
+        let task = task::as_task_mut(task);
+        Arc::get_mut(&mut task.sched_info).unwrap().reset(self.entry, task_entry as usize, 0.into());
         error!("copy_thread!");
     }
 }
 
+// Todo: We should move task_entry to taskctx.
+// Now schedule_tail: 'run_queue::force_unlock();` hinders us.
+// Consider to move it to sched first!
 extern "C" fn task_entry() -> ! {
     // schedule_tail
     // unlock runqueue for freshly created task
     run_queue::force_unlock();
 
     let task = crate::current();
-    if let Some(entry) = task.entry {
+    if let Some(entry) = task.sched_info.entry {
         unsafe { Box::from_raw(entry)() };
     }
 
