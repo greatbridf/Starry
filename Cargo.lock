@@ -559,6 +559,7 @@ dependencies = [
  "mmap",
  "scheduler",
  "spinlock",
+ "sys",
  "task",
 ]
 
@@ -2037,6 +2038,17 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-ident",
+]
+
+[[package]]
+name = "sys"
+version = "0.1.0"
+dependencies = [
+ "axconfig",
+ "axerrno",
+ "axhal",
+ "log",
+ "taskctx",
 ]
 
 [[package]]

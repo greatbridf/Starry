@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 axhal = { path = "../axhal" }
 task = { path = "../task" }
+sys = { path = "../sys" }
 mmap = { path = "../mmap" }
 axalloc = { path = "../axalloc" }
 axfile = { path = "../axfile" }

@@ -248,9 +248,9 @@ fn linux_syscall_set_robust_list(_args: SyscallArgs) -> usize {
     0
 }
 
-fn linux_syscall_prlimit64(_args: SyscallArgs) -> usize {
-    warn!("impl linux_syscall_prlimit64");
-    0
+fn linux_syscall_prlimit64(args: SyscallArgs) -> usize {
+    let [pid, resource, new_rlim, old_rlim, ..] = args;
+    sys::prlimit64(pid, resource, new_rlim, old_rlim)
 }
 
 fn linux_syscall_getrandom(_args: SyscallArgs) -> usize {
@@ -274,13 +274,11 @@ fn linux_syscall_rt_sigaction(_args: SyscallArgs) -> usize {
 }
 
 fn linux_syscall_gettid(_args: SyscallArgs) -> usize {
-    warn!("impl linux_syscall_gettid");
-    0
+    sys::gettid()
 }
 
 fn linux_syscall_getpid(_args: SyscallArgs) -> usize {
-    warn!("impl linux_syscall_getpid");
-    0
+    sys::getpid()
 }
 
 fn linux_syscall_tgkill(_args: SyscallArgs) -> usize {
