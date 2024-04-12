@@ -11,7 +11,6 @@ ramfs = ["dep:axfs_ramfs"]
 procfs = ["dep:axfs_ramfs"]
 sysfs = ["dep:axfs_ramfs"]
 fatfs = ["dep:fatfs"]
-myfs = ["dep:crate_interface"]
 use-ramdisk = []
 
 default = ["devfs", "ramfs", "fatfs", "procfs", "sysfs"]
@@ -25,7 +24,6 @@ fstree = { path = "../fstree" }
 axsync = { path = "../axsync" }
 axfs_devfs = { path = "../../crates/axfs_devfs", optional = true }
 axfs_ramfs = { path = "../../crates/axfs_ramfs", optional = true }
-crate_interface = { path = "../../crates/crate_interface", optional = true }
 axfs_vfs = { path = "../../crates/axfs_vfs" }
 lazy_init = { path = "../../crates/lazy_init" }
 
