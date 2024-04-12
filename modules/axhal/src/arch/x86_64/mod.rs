@@ -5,7 +5,7 @@ mod idt;
 mod syscall;
 
 mod trap;
-
+#[cfg(feature = "monolithic")]
 pub use trap::first_into_user;
 
 use core::arch::asm;
@@ -80,6 +80,8 @@ pub unsafe fn write_page_table_root(root_paddr: PhysAddr) {
         controlregs::cr3_write(root_paddr.as_usize() as _)
     }
 }
+
+pub use self::write_page_table_root as write_page_table_root0;
 
 /// Flushes the TLB.
 ///

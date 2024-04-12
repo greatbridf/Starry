@@ -6,9 +6,9 @@ use alloc::vec::Vec;
 use alloc::{collections::BTreeMap, string::String};
 use axerrno::{AxError, AxResult};
 use axfs::api::{FileIO, OpenFlags};
-use axhal::arch::{flush_tlb, write_page_table_root, TrapFrame};
-use axhal::mem::{phys_to_virt, virt_to_phys, VirtAddr};
-use axhal::paging::MappingFlags;
+use axhal::arch::{write_page_table_root0, TrapFrame};
+use axhal::mem::{phys_to_virt, VirtAddr};
+
 use axhal::KERNEL_PROCESS_ID;
 use axlog::{debug, error};
 use axmem::MemorySet;
@@ -23,7 +23,11 @@ use crate::futex::FutexRobustList;
 use crate::signal::SignalModule;
 use crate::stdio::{Stderr, Stdin, Stdout};
 use crate::{load_app, yield_now_task};
+
+/// Map from task id to arc pointer of task
 pub static TID2TASK: Mutex<BTreeMap<u64, AxTaskRef>> = Mutex::new(BTreeMap::new());
+
+/// Map from process id to arc pointer of process
 pub static PID2PC: Mutex<BTreeMap<u64, Arc<Process>>> = Mutex::new(BTreeMap::new());
 const FD_LIMIT_ORIGIN: usize = 1025;
 
@@ -32,6 +36,7 @@ extern "C" {
     fn start_signal_trampoline();
 }
 
+/// The process control block
 pub struct Process {
     /// 进程号
     pid: u64,
@@ -55,7 +60,7 @@ pub struct Process {
     pub exit_code: AtomicI32,
 
     /// 地址空间
-    pub memory_set: Arc<Mutex<MemorySet>>,
+    pub memory_set: Mutex<Arc<Mutex<MemorySet>>>,
 
     /// 用户堆基址，任何时候堆顶都不能比这个值小，理论上讲是一个常量
     pub heap_bottom: AtomicU64,
@@ -73,56 +78,83 @@ pub struct Process {
     /// 具体使用交给了用户空间
     pub robust_list: Mutex<BTreeMap<u64, FutexRobustList>>,
 
+    /// 是否被vfork阻塞
     pub blocked_by_vfork: Mutex<bool>,
+
+    /// 该进程可执行文件所在的路径
+    pub file_path: Mutex<String>,
 }
 
 impl Process {
+    /// get the process id
     pub fn pid(&self) -> u64 {
         self.pid
     }
 
+    /// get the parent process id
     pub fn get_parent(&self) -> u64 {
         self.parent.load(Ordering::Acquire)
     }
 
+    /// set the parent process id
     pub fn set_parent(&self, parent: u64) {
         self.parent.store(parent, Ordering::Release)
     }
 
+    /// get the exit code of the process
     pub fn get_exit_code(&self) -> i32 {
         self.exit_code.load(Ordering::Acquire)
     }
 
+    /// set the exit code of the process
     pub fn set_exit_code(&self, exit_code: i32) {
         self.exit_code.store(exit_code, Ordering::Release)
     }
 
+    /// whether the process is a zombie process
     pub fn get_zombie(&self) -> bool {
         self.is_zombie.load(Ordering::Acquire)
     }
 
+    /// set the process as a zombie process
     pub fn set_zombie(&self, status: bool) {
         self.is_zombie.store(status, Ordering::Release)
     }
 
+    /// get the heap top of the process
     pub fn get_heap_top(&self) -> u64 {
         self.heap_top.load(Ordering::Acquire)
     }
 
+    /// set the heap top of the process
     pub fn set_heap_top(&self, top: u64) {
         self.heap_top.store(top, Ordering::Release)
     }
 
+    /// get the heap bottom of the process
     pub fn get_heap_bottom(&self) -> u64 {
         self.heap_bottom.load(Ordering::Acquire)
     }
 
+    /// set the heap bottom of the process
     pub fn set_heap_bottom(&self, bottom: u64) {
         self.heap_bottom.store(bottom, Ordering::Release)
     }
 
+    /// set the process as blocked by vfork
     pub fn set_vfork_block(&self, value: bool) {
         *self.blocked_by_vfork.lock() = value;
+    }
+
+    /// set the executable file path of the process
+    pub fn set_file_path(&self, path: String) {
+        let mut file_path = self.file_path.lock();
+        *file_path = path;
+    }
+
+    /// get the executable file path of the process
+    pub fn get_file_path(&self) -> String {
+        (*self.file_path.lock()).clone()
     }
 
     /// 若进程运行完成，则获取其返回码
@@ -136,10 +168,11 @@ impl Process {
 }
 
 impl Process {
+    /// 创建一个新的进程
     pub fn new(
         pid: u64,
         parent: u64,
-        memory_set: Arc<Mutex<MemorySet>>,
+        memory_set: Mutex<Arc<Mutex<MemorySet>>>,
         heap_bottom: u64,
         fd_table: Vec<Option<Arc<dyn FileIO>>>,
     ) -> Self {
@@ -158,6 +191,7 @@ impl Process {
             signal_modules: Mutex::new(BTreeMap::new()),
             robust_list: Mutex::new(BTreeMap::new()),
             blocked_by_vfork: Mutex::new(false),
+            file_path: Mutex::new(String::new()),
         }
     }
     /// 根据给定参数创建一个新的进程，作为应用程序初始进程
@@ -166,6 +200,8 @@ impl Process {
         let mut memory_set = MemorySet::new_with_kernel_mapped();
         #[cfg(feature = "signal")]
         {
+            use axhal::mem::virt_to_phys;
+            use axhal::paging::MappingFlags;
             // 生成信号跳板
             let signal_trampoline_vaddr: VirtAddr = (axconfig::SIGNAL_TRAMPOLINE).into();
             let signal_trampoline_paddr = virt_to_phys((start_signal_trampoline as usize).into());
@@ -181,9 +217,8 @@ impl Process {
         let page_table_token = memory_set.page_table_token();
         if page_table_token != 0 {
             unsafe {
-                write_page_table_root(page_table_token.into());
-                // when do the relocation for the elf in the supervisor mode, the SUM bit should be set
-                #[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
+                write_page_table_root0(page_table_token.into());
+                #[cfg(target_arch = "riscv64")]
                 riscv::register::sstatus::set_sum();
             };
         }
@@ -198,7 +233,7 @@ impl Process {
         let new_process = Arc::new(Self::new(
             TaskId::new().as_u64(),
             KERNEL_PROCESS_ID,
-            Arc::new(Mutex::new(memory_set)),
+            Mutex::new(Arc::new(Mutex::new(memory_set))),
             heap_bottom.as_usize() as u64,
             vec![
                 // 标准输入
@@ -298,9 +333,27 @@ impl Process {
         // 处理分配的页帧
         // 之后加入额外的东西之后再处理其他的包括信号等因素
         // 不是直接删除原有地址空间，否则构建成本较高。
-        self.memory_set.lock().unmap_user_areas();
+
+        if Arc::strong_count(&self.memory_set.lock()) == 1 {
+            self.memory_set.lock().lock().unmap_user_areas();
+        } else {
+            let memory_set = Arc::new(Mutex::new(MemorySet::clone_or_err(
+                &self.memory_set.lock().lock(),
+            )?));
+            *self.memory_set.lock() = memory_set;
+            self.memory_set.lock().lock().unmap_user_areas();
+            let new_page_table = self.memory_set.lock().lock().page_table_token();
+            let mut tasks = self.tasks.lock();
+            for task in tasks.iter_mut() {
+                task.inner().set_page_table_token(new_page_table);
+            }
+            // 切换到新的页表上
+            unsafe {
+                axhal::arch::write_page_table_root0(new_page_table.into());
+            }
+        }
         // 清空用户堆，重置堆顶
-        flush_tlb(None);
+        axhal::arch::flush_tlb(None);
 
         // 关闭 `CLOEXEC` 的文件
         // inner.fd_manager.close_on_exec();
@@ -334,24 +387,23 @@ impl Process {
         } else {
             args
         };
-        let (entry, user_stack_bottom, heap_bottom) =
-            if let Ok(ans) = load_app(name.clone(), args, envs, &mut self.memory_set.lock()) {
-                ans
-            } else {
-                error!("Failed to load app {}", name);
-                return Err(AxError::NotFound);
-            };
+        let (entry, user_stack_bottom, heap_bottom) = if let Ok(ans) =
+            load_app(name.clone(), args, envs, &mut self.memory_set.lock().lock())
+        {
+            ans
+        } else {
+            error!("Failed to load app {}", name);
+            return Err(AxError::NotFound);
+        };
         // 切换了地址空间， 需要切换token
         let page_table_token = if self.pid == KERNEL_PROCESS_ID {
             0
         } else {
-            self.memory_set.lock().page_table_token()
+            self.memory_set.lock().lock().page_table_token()
         };
         if page_table_token != 0 {
-            // axhal::arch::write_page_table_root(page_table_token.into());
             unsafe {
-                write_page_table_root(page_table_token.into());
-                flush_tlb(None);
+                write_page_table_root0(page_table_token.into());
             };
             // 清空用户堆，重置堆顶
         }
@@ -366,6 +418,8 @@ impl Process {
 
         #[cfg(feature = "signal")]
         {
+            use axhal::mem::virt_to_phys;
+            use axhal::paging::MappingFlags;
             // 重置信号处理模块
             // 此时只会留下一个线程
             self.signal_modules.lock().clear();
@@ -376,14 +430,19 @@ impl Process {
             // 生成信号跳板
             let signal_trampoline_vaddr: VirtAddr = (axconfig::SIGNAL_TRAMPOLINE).into();
             let signal_trampoline_paddr = virt_to_phys((start_signal_trampoline as usize).into());
-            let _ = self.memory_set.lock().map_page_without_alloc(
-                signal_trampoline_vaddr,
-                signal_trampoline_paddr,
-                MappingFlags::READ
-                    | MappingFlags::EXECUTE
-                    | MappingFlags::USER
-                    | MappingFlags::WRITE,
-            );
+            let memory_set_wrapper = self.memory_set.lock();
+            let mut memory_set = memory_set_wrapper.lock();
+            if memory_set.query(signal_trampoline_vaddr).is_err() {
+                let _ = memory_set.map_page_without_alloc(
+                    signal_trampoline_vaddr,
+                    signal_trampoline_paddr,
+                    MappingFlags::READ
+                        | MappingFlags::EXECUTE
+                        | MappingFlags::USER
+                        | MappingFlags::WRITE,
+                );
+            }
+            drop(memory_set);
         }
 
         // user_stack_top = user_stack_top / PAGE_SIZE_4K * PAGE_SIZE_4K;
@@ -409,16 +468,17 @@ impl Process {
         //     // 任务过多，手动特判结束，用来作为QEMU内存不足的应对方法
         //     return Err(AxError::NoMemory);
         // }
-
         // 是否共享虚拟地址空间
         let new_memory_set = if flags.contains(CloneFlags::CLONE_VM) {
-            Arc::clone(&self.memory_set)
+            Mutex::new(Arc::clone(&self.memory_set.lock()))
         } else {
             let memory_set = Arc::new(Mutex::new(MemorySet::clone_or_err(
-                &self.memory_set.lock(),
+                &self.memory_set.lock().lock(),
             )?));
             #[cfg(feature = "signal")]
             {
+                use axhal::mem::virt_to_phys;
+                use axhal::paging::MappingFlags;
                 // 生成信号跳板
                 let signal_trampoline_vaddr: VirtAddr = (axconfig::SIGNAL_TRAMPOLINE).into();
                 let signal_trampoline_paddr =
@@ -432,7 +492,7 @@ impl Process {
                         | MappingFlags::WRITE,
                 )?;
             }
-            memory_set
+            Mutex::new(memory_set)
         };
 
         // 在生成新的进程前，需要决定其所属进程是谁
@@ -457,7 +517,7 @@ impl Process {
             String::from(self.tasks.lock()[0].name().split('/').last().unwrap()),
             axconfig::TASK_STACK_SIZE,
             process_id,
-            new_memory_set.lock().page_table_token(),
+            new_memory_set.lock().lock().page_table_token(),
             #[cfg(feature = "signal")]
             sig_child,
         );
@@ -529,7 +589,8 @@ impl Process {
                     return Err(AxError::BadAddress);
                 }
             } else {
-                let mut vm = new_memory_set.lock();
+                let memory_set_wrapper = self.memory_set.lock();
+                let mut vm = memory_set_wrapper.lock();
                 // 否则需要在新的地址空间中进行分配
                 if vm.manual_alloc_for_lazy(ctid.into()).is_ok() {
                     // 此时token没有发生改变，所以不能直接解引用访问，需要手动查页表
@@ -613,8 +674,7 @@ impl Process {
         let mut trap_frame = unsafe { *(current_task.get_first_trap_frame()) };
         // drop(current_task);
         // 新开的进程/线程返回值为0
-        // trap_frame.regs.a0 = 0;
-        trap_frame.set_ret(0);
+        trap_frame.set_ret_code(0);
         if flags.contains(CloneFlags::CLONE_SETTLS) {
             #[cfg(not(target_arch = "x86_64"))]
             trap_frame.set_tls(tls);
@@ -623,12 +683,13 @@ impl Process {
                 new_task.set_tls_force(tls);
             }
         }
+
         // 设置用户栈
         // 若给定了用户栈，则使用给定的用户栈
         // 若没有给定用户栈，则使用当前用户栈
         // 没有给定用户栈的时候，只能是共享了地址空间，且原先调用clone的有用户栈，此时已经在之前的trap clone时复制了
         if let Some(stack) = stack {
-            trap_frame.set_user_sp(stack)
+            trap_frame.set_user_sp(stack);
             // info!(
             //     "New user stack: sepc:{:X}, stack:{:X}",
             //     trap_frame.sepc, trap_frame.regs.sp
@@ -648,23 +709,31 @@ impl Process {
 
 /// 与地址空间相关的进程方法
 impl Process {
+    /// alloc physical memory for lazy allocation manually
     pub fn manual_alloc_for_lazy(&self, addr: VirtAddr) -> AxResult<()> {
-        self.memory_set.lock().manual_alloc_for_lazy(addr)
+        self.memory_set.lock().lock().manual_alloc_for_lazy(addr)
     }
 
+    /// alloc range physical memory for lazy allocation manually
     pub fn manual_alloc_range_for_lazy(&self, start: VirtAddr, end: VirtAddr) -> AxResult<()> {
         self.memory_set
+            .lock()
             .lock()
             .manual_alloc_range_for_lazy(start, end)
     }
 
+    /// alloc physical memory with the given type size for lazy allocation manually
     pub fn manual_alloc_type_for_lazy<T: Sized>(&self, obj: *const T) -> AxResult<()> {
-        self.memory_set.lock().manual_alloc_type_for_lazy(obj)
+        self.memory_set
+            .lock()
+            .lock()
+            .manual_alloc_type_for_lazy(obj)
     }
 }
 
 /// 与文件相关的进程方法
 impl Process {
+    /// 为进程分配一个文件描述符
     pub fn alloc_fd(&self, fd_table: &mut Vec<Option<Arc<dyn FileIO>>>) -> AxResult<usize> {
         for (i, fd) in fd_table.iter().enumerate() {
             if fd.is_none() {
@@ -678,6 +747,8 @@ impl Process {
         fd_table.push(None);
         Ok(fd_table.len() - 1)
     }
+
+    /// 获取当前进程的工作目录
     pub fn get_cwd(&self) -> String {
         self.fd_manager.cwd.lock().clone()
     }

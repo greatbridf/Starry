@@ -1,6 +1,6 @@
 //! Relocate .rela.dyn sections
 //! R_TYPE 与处理器架构有关，相关文档详见
-//! riscv: https://d3s.mff.cuni.cz/files/teaching/nswi200/202324/doc/riscv-abi.pdf
+//! riscv: <https://d3s.mff.cuni.cz/files/teaching/nswi200/202324/doc/riscv-abi.pdf>
 
 use core::mem::size_of;
 
@@ -74,11 +74,17 @@ pub fn get_relocate_pairs(
                 let addend = entry.get_addend() as usize; // Represents the addend used to compute the value of the relocatable field.
 
                 match entry.get_type() {
-                    R_RISCV_32 => pairs.push(RelocatePair {
-                        src: VirtAddr::from(symbol_value + addend),
-                        dst: VirtAddr::from(destination),
-                        count: 4,
-                    }),
+                    R_RISCV_32 => {
+                        if dyn_sym.shndx() == 0 {
+                            let name = dyn_sym.get_name(elf).unwrap();
+                            panic!(r#"Symbol "{}" not found"#, name);
+                        }
+                        pairs.push(RelocatePair {
+                            src: VirtAddr::from(symbol_value + addend),
+                            dst: VirtAddr::from(destination),
+                            count: 4,
+                        })
+                    }
                     R_RISCV_64 => {
                         if dyn_sym.shndx() == 0 {
                             let name = dyn_sym.get_name(elf).unwrap();

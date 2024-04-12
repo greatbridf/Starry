@@ -2,7 +2,6 @@ use alloc::vec::Vec;
 use axalloc::PhysPage;
 use axerrno::AxResult;
 use axhal::{
-    arch::flush_tlb,
     mem::{virt_to_phys, VirtAddr, PAGE_SIZE_4K},
     paging::{MappingFlags, PageSize, PageTable},
 };
@@ -16,10 +15,13 @@ use crate::MemBackend;
 /// NOTE: Cloning a `MapArea` needs allocating new phys pages and modifying a page table. So
 /// `Clone` trait won't implemented.
 pub struct MapArea {
+    /// phys pages of this area
     pub pages: Vec<Option<PhysPage>>,
-    /// 起始虚拟地址
+    /// start virtual address
     pub vaddr: VirtAddr,
+    /// mapping flags of this area
     pub flags: MappingFlags,
+    /// whether the area is backed by a file
     pub backend: Option<MemBackend>,
 }
 
@@ -38,7 +40,7 @@ impl MapArea {
         }
 
         page_table
-            .map_fault_region(start, num_pages * PAGE_SIZE_4K)
+            .map_fault_region(start, num_pages * PAGE_SIZE_4K, flags)
             .unwrap();
 
         Self {
@@ -59,11 +61,12 @@ impl MapArea {
         page_table: &mut PageTable,
     ) -> AxResult<Self> {
         let pages = PhysPage::alloc_contiguous(num_pages, PAGE_SIZE_4K, data)?;
-        info!(
-            "start: {:X?}, size: {:X},  page start: {:X?}",
+        debug!(
+            "start: {:X?}, size: {:X},  page start: {:X?} flags: {:?}",
             start,
             num_pages * PAGE_SIZE_4K,
-            pages[0].as_ref().unwrap().start_vaddr
+            pages[0].as_ref().unwrap().start_vaddr,
+            flags
         );
         page_table
             .map_region(
@@ -82,10 +85,12 @@ impl MapArea {
         })
     }
 
+    /// Deallocate all phys pages and unmap the area in page table.
     pub fn dealloc(&mut self, page_table: &mut PageTable) {
         page_table.unmap_region(self.vaddr, self.size()).unwrap();
         self.pages.clear();
     }
+
     /// 如果处理失败，返回false，此时直接退出当前程序
     pub fn handle_page_fault(
         &mut self,
@@ -157,7 +162,8 @@ impl MapArea {
                 self.flags,
             )
             .expect("Map in page fault handler failed");
-        flush_tlb(Some(addr));
+
+        axhal::arch::flush_tlb(addr.align_down_4k().into());
         self.pages[page_index] = Some(page);
         true
     }
@@ -364,14 +370,17 @@ impl MapArea {
 }
 
 impl MapArea {
+    /// return the size of the area, which thinks the page size is default 4K.
     pub fn size(&self) -> usize {
         self.pages.len() * PAGE_SIZE_4K
     }
 
+    /// return the end virtual address of the area.
     pub fn end_va(&self) -> VirtAddr {
         self.vaddr + self.size()
     }
 
+    /// return whether all the pages have been allocated.
     pub fn allocated(&self) -> bool {
         self.pages.iter().all(|page| page.is_some())
     }
@@ -396,14 +405,17 @@ impl MapArea {
         self.vaddr <= start && start < self.end_va() || start <= self.vaddr && self.vaddr < end
     }
 
+    /// If [start, end] contains self.
     pub fn contained_in(&self, start: VirtAddr, end: VirtAddr) -> bool {
         start <= self.vaddr && self.end_va() <= end
     }
 
+    /// If self contains [start, end].
     pub fn contains(&self, start: VirtAddr, end: VirtAddr) -> bool {
         self.vaddr <= start && end <= self.end_va()
     }
 
+    /// If self strictly contains [start, end], which stands for the start and end are not equal to self's.
     pub fn strict_contain(&self, start: VirtAddr, end: VirtAddr) -> bool {
         self.vaddr < start && end < self.end_va()
     }
@@ -459,7 +471,9 @@ impl MapArea {
                             Some(new_page)
                         }
                         None => {
-                            page_table.map_fault(vaddr, PageSize::Size4K).unwrap();
+                            page_table
+                                .map_fault(vaddr, PageSize::Size4K, self.flags)
+                                .unwrap();
                             None
                         }
                     }

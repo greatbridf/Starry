@@ -25,6 +25,7 @@ use crate::stat::TimeStat;
 
 use crate::{AxRunQueue, AxTask, AxTaskRef, WaitQueue};
 
+#[allow(unused)]
 use crate_interface::call_interface;
 
 /// A unique identifier for a thread.
@@ -34,6 +35,7 @@ pub struct TaskId(u64);
 /// The possible states of a task.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[allow(missing_docs)]
 pub enum TaskState {
     Running = 1,
     Ready = 2,
@@ -43,12 +45,19 @@ pub enum TaskState {
 
 #[derive(PartialEq, Eq, Clone, Copy)]
 #[allow(non_camel_case_types)]
+/// The policy of the scheduler
 pub enum SchedPolicy {
+    /// The default time-sharing scheduler
     SCHED_OTHER = 0,
+    /// The first-in, first-out scheduler
     SCHED_FIFO = 1,
+    /// The round-robin scheduler
     SCHED_RR = 2,
+    /// The batch scheduler
     SCHED_BATCH = 3,
+    /// The idle task scheduler
     SCHED_IDLE = 5,
+    /// Unknown scheduler
     SCHED_UNKNOWN,
 }
 
@@ -81,8 +90,11 @@ impl From<SchedPolicy> for isize {
 }
 
 #[derive(Clone, Copy)]
+/// The status of the scheduler
 pub struct SchedStatus {
+    /// The policy of the scheduler
     pub policy: SchedPolicy,
+    /// The priority of the scheduler policy
     pub priority: usize,
 }
 /// The inner task structure.
@@ -125,7 +137,8 @@ pub struct TaskInner {
     pub trap_frame: UnsafeCell<TrapFrame>,
 
     #[cfg(feature = "monolithic")]
-    pub page_table_token: usize,
+    /// the page table token of the process which the task belongs to
+    pub page_table_token: UnsafeCell<usize>,
 
     #[cfg(feature = "monolithic")]
     set_child_tid: AtomicU64,
@@ -133,11 +146,12 @@ pub struct TaskInner {
     #[cfg(feature = "monolithic")]
     clear_child_tid: AtomicU64,
 
-    // 时间统计, 无论是否为宏内核架构都可能被使用到
+    /// 时间统计, 无论是否为宏内核架构都可能被使用到
     #[allow(unused)]
     time: UnsafeCell<TimeStat>,
 
     #[cfg(feature = "monolithic")]
+    /// TODO: to support the sched_setaffinity
     pub cpu_set: AtomicU64,
 
     #[cfg(feature = "signal")]
@@ -145,10 +159,12 @@ pub struct TaskInner {
     pub send_sigchld_when_exit: bool,
 
     #[cfg(feature = "monolithic")]
+    /// The scheduler status of the task, which defines the scheduling policy and priority
     pub sched_status: UnsafeCell<SchedStatus>,
 }
 static ID_COUNTER: AtomicU64 = AtomicU64::new(1);
 impl TaskId {
+    /// Create a new task ID.
     pub fn new() -> Self {
         Self(ID_COUNTER.fetch_add(1, Ordering::Relaxed))
     }
@@ -199,6 +215,7 @@ impl TaskInner {
         unsafe { (*self.name.get()).as_str() }
     }
 
+    /// Sets the name of the task.
     pub fn set_name(&self, name: &str) {
         unsafe {
             *self.name.get() = String::from(name);
@@ -207,7 +224,7 @@ impl TaskInner {
 
     /// Get a combined string of the task ID and name.
     pub fn id_name(&self) -> alloc::string::String {
-        alloc::format!("Task({}, {:?})", self.id.as_u64(), self.name)
+        alloc::format!("Task({}, {:?})", self.id.as_u64(), self.name())
     }
 
     /// Wait for the task to exit, and return the exit code.
@@ -230,32 +247,47 @@ impl TaskInner {
 }
 
 #[crate_interface::def_interface]
+/// The interface for checking whether the task is blocked by vfork
 pub trait VforkCheck {
-    // Called to check whether vforked
-    // if this process was blocked by vfork, return true
+    /// Called to check whether vforked
+    ///
+    /// if this process was blocked by vfork, return true
     fn check_vfork(&self, process_id: u64) -> bool;
 }
 
 #[cfg(feature = "monolithic")]
 impl TaskInner {
+    /// store the child thread ID at the location pointed to by child_tid in clone args
     pub fn set_child_tid(&self, tid: usize) {
         self.set_child_tid.store(tid as u64, Ordering::Release)
     }
 
+    /// clear (zero) the child thread ID at the location pointed to by child_tid in clone args
     pub fn set_clear_child_tid(&self, tid: usize) {
         self.clear_child_tid.store(tid as u64, Ordering::Release)
     }
 
+    /// get the pointer to the child thread ID
     pub fn get_clear_child_tid(&self) -> usize {
         self.clear_child_tid.load(Ordering::Acquire) as usize
     }
 
     #[inline]
+    /// get the page table token of the process which the task belongs to
     pub fn get_page_table_token(&self) -> usize {
-        self.page_table_token
+        unsafe { *self.page_table_token.get() }
     }
 
     #[inline]
+    /// force to set the page table token of the process UNSAFELY
+    pub fn set_page_table_token(&self, token: usize) {
+        unsafe {
+            *self.page_table_token.get() = token;
+        }
+    }
+
+    #[inline]
+    /// update the time information when the task is switched from user mode to kernel mode
     pub fn time_stat_from_user_to_kernel(&self) {
         let time = self.time.get();
         unsafe {
@@ -264,6 +296,7 @@ impl TaskInner {
     }
 
     #[inline]
+    /// update the time information when the task is switched from kernel mode to user mode
     pub fn time_stat_from_kernel_to_user(&self) {
         let time = self.time.get();
         unsafe {
@@ -272,6 +305,7 @@ impl TaskInner {
     }
 
     #[inline]
+    /// update the time information when the task is switched out
     pub fn time_stat_when_switch_from(&self) {
         let time = self.time.get();
         unsafe {
@@ -280,6 +314,7 @@ impl TaskInner {
     }
 
     #[inline]
+    /// update the time information when the task is ready to be switched in
     pub fn time_stat_when_switch_to(&self) {
         let time = self.time.get();
         unsafe {
@@ -328,11 +363,13 @@ impl TaskInner {
     }
 
     #[inline]
+    /// get the process ID of the task
     pub fn get_process_id(&self) -> u64 {
         self.process_id.load(Ordering::Acquire)
     }
 
     #[inline]
+    /// set the process ID of the task
     pub fn set_process_id(&self, process_id: u64) {
         self.process_id.store(process_id, Ordering::Release);
     }
@@ -346,10 +383,12 @@ impl TaskInner {
         unreachable!("get_first_trap_frame: kstack is None");
     }
 
+    /// set the flag whether the task is the main thread of the process
     pub fn set_leader(&self, is_lead: bool) {
         self.is_leader.store(is_lead, Ordering::Release);
     }
 
+    /// whether the task is the main thread of the process
     pub fn is_leader(&self) -> bool {
         self.is_leader.load(Ordering::Acquire)
     }
@@ -383,10 +422,12 @@ impl TaskInner {
         self.cpu_set.store(now_mask as u64, Ordering::Release)
     }
 
+    /// to get the CPU set
     pub fn get_cpu_set(&self) -> usize {
         self.cpu_set.load(Ordering::Acquire) as usize
     }
 
+    /// set the scheduling policy and priority
     pub fn set_sched_status(&self, status: SchedStatus) {
         let prev_status = self.sched_status.get();
         unsafe {
@@ -394,21 +435,25 @@ impl TaskInner {
         }
     }
 
+    /// get the scheduling policy and priority
     pub fn get_sched_status(&self) -> SchedStatus {
         let status = self.sched_status.get();
         unsafe { *status }
     }
 
+    /// get the task context for task switch
     pub fn get_ctx(&self) -> &TaskContext {
         unsafe { self.ctx.get().as_ref().unwrap() }
     }
 
     #[cfg(feature = "signal")]
+    /// whether to send SIG_CHILD when the task exits
     pub fn get_sig_child(&self) -> bool {
         self.send_sigchld_when_exit
     }
 
     #[cfg(feature = "signal")]
+    /// set whether to send SIG_CHILD when the task exits
     pub fn set_sig_child(&mut self, sig_child: bool) {
         self.send_sigchld_when_exit = sig_child;
     }
@@ -420,8 +465,8 @@ impl TaskInner {
         self.ctx.get().as_mut().unwrap().fs_base = value;
     }
 
+    /// 获取父进程blocked_by_vfork布尔值
     pub fn is_vfork(&self) -> bool {
-        // 获取父进程blocked_by_vfork布尔值
         call_interface!(VforkCheck::check_vfork(self.get_process_id()))
     }
 }
@@ -463,7 +508,7 @@ impl TaskInner {
             trap_frame: UnsafeCell::new(TrapFrame::default()),
 
             #[cfg(feature = "monolithic")]
-            page_table_token: 0,
+            page_table_token: UnsafeCell::new(0),
 
             #[cfg(feature = "monolithic")]
             set_child_tid: AtomicU64::new(0),
@@ -515,7 +560,7 @@ impl TaskInner {
         {
             t.process_id.store(process_id, Ordering::Release);
 
-            t.page_table_token = page_table_token;
+            t.page_table_token = UnsafeCell::new(page_table_token);
 
             // 需要修改ctx存储的栈地址，否则内核trap上下文会被修改
             t.ctx.get_mut().init(
@@ -555,11 +600,13 @@ impl TaskInner {
     }
 
     #[inline]
+    /// the state of the task
     pub fn state(&self) -> TaskState {
         self.state.load(Ordering::Acquire).into()
     }
 
     #[inline]
+    /// set the state of the task
     pub fn set_state(&self, state: TaskState) {
         self.state.store(state as u8, Ordering::Release)
     }

@@ -1,7 +1,7 @@
 //! Init some files and links for the apps
 
 use alloc::{format, string::ToString};
-use syscall_entry::{create_link, new_file, FileFlags, FilePath};
+use axstarry::{create_link, new_file, FileFlags, FilePath};
 
 /// 在执行系统调用前初始化文件系统
 ///
@@ -19,6 +19,11 @@ pub fn fs_init() {
     #[cfg(target_arch = "x86_64")]
     let libc_so2 = &"ld-musl-x86_64.so.1"; // 另一种名字的 libc.so，非 libc-test 测例库用
 
+    #[cfg(target_arch = "aarch64")]
+    let libc_so = &"ld-musl-aarch64-sf.so.1";
+    #[cfg(target_arch = "aarch64")]
+    let libc_so2 = &"ld-musl-aarch64.so.1"; // 另一种名字的 libc.so，非 libc-test 测例库用
+
     create_link(
         &(FilePath::new(("/lib/".to_string() + libc_so).as_str()).unwrap()),
         &(FilePath::new("libc.so").unwrap()),
@@ -35,7 +40,7 @@ pub fn fs_init() {
     );
 
     // 接下来对 busybox 相关的指令建立软链接
-    let busybox_arch = ["ls", "mkdir", "touch", "mv", "busybox"];
+    let busybox_arch = ["ls", "mkdir", "touch", "mv", "busybox", "sh", "which"];
     for arch in busybox_arch {
         let src_path = "/usr/sbin/".to_string() + arch;
         create_link(
@@ -43,6 +48,11 @@ pub fn fs_init() {
             &(FilePath::new("busybox").unwrap()),
         );
         let src_path = "/usr/bin/".to_string() + arch;
+        create_link(
+            &(FilePath::new(src_path.as_str()).unwrap()),
+            &(FilePath::new("busybox").unwrap()),
+        );
+        let src_path = "/bin/".to_string() + arch;
         create_link(
             &(FilePath::new(src_path.as_str()).unwrap()),
             &(FilePath::new("busybox").unwrap()),

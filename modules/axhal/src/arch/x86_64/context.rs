@@ -42,6 +42,7 @@ impl TrapFrame {
         self.cs & 0b11 == 3
     }
 
+    /// To set the stack pointer
     pub fn set_user_sp(&mut self, user_sp: usize) {
         self.rsp = user_sp as _;
     }
@@ -58,7 +59,8 @@ impl TrapFrame {
         trap_frame
     }
 
-    pub fn set_ret(&mut self, ret_value: usize) {
+    /// set the return code
+    pub fn set_ret_code(&mut self, ret_value: usize) {
         self.rax = ret_value as _;
     }
 
@@ -102,7 +104,7 @@ impl TrapFrame {
     }
 
     /// 获取 ret
-    pub fn get_ret(&self) -> usize {
+    pub fn get_ret_code(&self) -> usize {
         self.rax as _
     }
 

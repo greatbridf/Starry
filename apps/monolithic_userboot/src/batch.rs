@@ -4,14 +4,14 @@ use alloc::{boxed::Box, string::String, string::ToString, vec::Vec};
 
 #[allow(dead_code)]
 pub const SDCARD_TESTCASES: &[&str] = &[
-    // "./runtest.exe -w entry-static.exe pthread_cancel_points",
-    "busybox sh",
+    // "./runtest.exe -w entry-static.exe pthread_cond",
+    // "busybox du",
     // "./MediaServer -h",
     // "busybox sh ./test_all.sh",
     // "./riscv64-linux-musl-native/bin/riscv64-linux-musl-gcc ./hello.c -static",
     // "./a.out",
-    // "./time-test",
-    // "./interrupts-test-1",
+    "./time-test",
+    "./interrupts-test-1",
     // "./interrupts-test-2",
     // "./copy-file-range-test-1",
     // "./copy-file-range-test-2",
@@ -37,7 +37,7 @@ pub const SDCARD_TESTCASES: &[&str] = &[
     // "lmbench_all lat_select -n 100 -P 1 file",
     // "lmbench_all lat_sig -P 1 install",
     // "lmbench_all lat_sig -P 1 catch",
-    "lmbench_all lat_sig -P 1 prot lat_sig",
+    // "lmbench_all lat_sig -P 1 prot lat_sig",
     // "lmbench_all lat_pipe -P 1",
     // "lmbench_all lat_proc -P 1 fork",
     // "lmbench_all lat_proc -P 1 exec",
@@ -104,17 +104,15 @@ pub fn run_batch_testcases(envs: &Vec<String>) {
     let mut test_iter = Box::new(SDCARD_TESTCASES.iter());
     for testcase in test_iter {
         let args = get_args(testcase.as_bytes());
-        let user_process = syscall_entry::Process::init(args, envs).unwrap();
+        let user_process = axstarry::Process::init(args, envs).unwrap();
         let now_process_id = user_process.get_process_id() as isize;
         let mut exit_code = 0;
         loop {
-            if unsafe { syscall_entry::wait_pid(now_process_id, &mut exit_code as *mut i32) }
-                .is_ok()
-            {
+            if unsafe { axstarry::wait_pid(now_process_id, &mut exit_code as *mut i32) }.is_ok() {
                 break;
             }
-            syscall_entry::yield_now_task();
+            axstarry::yield_now_task();
         }
-        syscall_entry::recycle_user_process();
+        axstarry::recycle_user_process();
     }
 }

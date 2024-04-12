@@ -14,38 +14,78 @@
 
 ## Usage
 
-通过修改 `ulib/axstarry/syscall_entry/test.rs` 中的 `SDCARD_TESTCASES` 常量，可以选择内核启动后运行的程序。例如如果想要开机启动终端，则需要将常量的值改为 `"busybox sh"`。
+通过修改 `apps/monolithic_userboot/src/batch.rs` 中的 `SDCARD_TESTCASES` 常量，并且在启动时加入编译参数`APP_FEATURES=batch`，可以选择让内核启动后以批处理形式运行给定程序。
+
+如果未添加 `APP_FEATURES=batch` 参数，内核将以交互式的形式运行，默认开机之后直接进入`busybox sh`终端。
 
 ### x86_64
 
+这里是 `x86_ZLMediaKit` 分支，请开发同学关注 `ZLMediaKit` 启动方式
+
+#### 通常启动
+
 ```shell
 # 构建镜像
-./build_x86.sh
+# 默认构建x86_64架构的fat32磁盘镜像
+./build_img.sh
+
+# 或构建ext4格式的磁盘文件
+# ./build_img.sh x86_64 ext4
 
 # 运行宏内核
 make run
 
+# 或运行ext4文件系统的宏内核
+# make run FEATURES=ext4fs
+
 # 显式指定参数并运行（实际上这些参数已在根目录 Makefile 中给出）
-# make A=apps/oscomp AARCH=x86_64 FEATURES=fp_simd run
+# make A=apps//build_img.sh sdcard AARCH=x86_64 FEATURES=fp_simd run
 
 ```
 
-如果 `./build_x86.sh` 卡住，可以[手动下载](https://github.com/oscomp/testsuits-for-oskernel/releases/download/final-x86_64/testsuits-x86_64-linux-musl.tgz)测例文件，然后把其中的 `wget` 一行注释掉并再次执行。
+如果 `./build_img.sh` 卡住，可以[手动下载](https://github.com/oscomp/testsuits-for-oskernel/releases/download/final-x86_64/testsuits-x86_64-linux-musl.tgz)测例文件，然后把其中的 `wget` 一行注释掉并再次执行。
 
+#### ZLM 启动
+
+1. 在 Starry 同级目录或者其他位置下载并编译 ZLM，详见 `https://docs.zlmediakit.com/zh/guide/install/`
+2. 将 ZLM 项目的 `release/linux/Debug/MediaServer` 复制到 `Starry` 项目下的 `testcases/ZLM/` 下
+3. 按如下方式运行
+```shell
+# 如果你本机是 x86，可以尝试以下命令测试 MediaServer 本体是否有问题
+# 也可跳过这一步
+./testcases/ZLM/MediaServer -h
+
+# 构建镜像
+# 默认构建x86_64架构的fat32磁盘镜像
+./build_img.sh ZLM
+
+# 运行宏内核
+make run
+
+# 在 Starry 中尝试运行如下命令
+> ./MediaServer -h
+
+# 在通过第一阶段之前，上述命令会执行失败
+# 在通过第一阶段之后，上述命令的输出应该和 x86 本机输出大致相同
+```
 
 ### RISC-V
 
 ```shell
 # 构建镜像
-./build_img.sh sdcard
+./build_img.sh riscv
+
 # 运行 Unikernel 架构内核
 make run
 
 # 以宏内核形式启动(当前仅支持 riscv 架构)
-make A=apps/oscomp ARCH=riscv64 run
+make A=apps/monolithic_userboot ARCH=riscv64 run
 
-# 使用 ramdisk 加载测例并且运行内核，可以显著提高文件 IO 速度
-make A=apps/oscomp ARCH=riscv64 FEATURES=img run
+# 使用 ramdisk 加载文件镜像并且运行内核，可以显著提高文件 IO 速度
+make A=apps/monolithic_userboot ARCH=riscv64 FEATURES=img run
+
+# 使用批处理模式启动宏内核并且运行给定测例
+make A=apps/monolithic_userboot ARCH=riscv64 APP_FEATURES=batch run
 
 ```
 

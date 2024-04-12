@@ -85,3 +85,11 @@ pub fn platform_init() {}
 /// Initializes the platform devices for secondary CPUs.
 #[cfg(feature = "smp")]
 pub fn platform_init_secondary() {}
+
+/// To be called by the kernel to set the top of the TSS stack.
+pub fn set_tss_stack_top(_kernel_stack_top: memory_addr::VirtAddr) {}
+
+/// Returns the name of the platform.
+pub fn platform_name() -> &'static str {
+    "dummy"
+}

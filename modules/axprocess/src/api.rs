@@ -10,7 +10,6 @@ use alloc::{
 };
 use axconfig::{MAX_USER_HEAP_SIZE, MAX_USER_STACK_SIZE, USER_HEAP_BASE, USER_STACK_TOP};
 use axerrno::{AxError, AxResult};
-use axhal::arch::flush_tlb;
 use axhal::mem::VirtAddr;
 use axhal::paging::MappingFlags;
 use axhal::KERNEL_PROCESS_ID;
@@ -37,7 +36,7 @@ pub fn init_kernel_process() {
     let kernel_process = Arc::new(Process::new(
         TaskId::new().as_u64(),
         0,
-        Arc::new(Mutex::new(MemorySet::new_empty())),
+        Mutex::new(Arc::new(Mutex::new(MemorySet::new_empty()))),
         0,
         vec![],
     ));
@@ -49,6 +48,7 @@ pub fn init_kernel_process() {
     PID2PC.lock().insert(kernel_process.pid(), kernel_process);
 }
 
+/// return the `Arc<Process>` of the current process
 pub fn current_process() -> Arc<Process> {
     let current_task = current();
 
@@ -64,7 +64,7 @@ pub fn exit_current_task(exit_code: i32) -> ! {
 
     let curr_id = current_task.id().as_u64();
 
-    info!("exit task id {} with code {}", curr_id, exit_code);
+    info!("exit task id {} with code _{}_", curr_id, exit_code);
     clear_wait(
         if current_task.is_leader() {
             process.pid()
@@ -189,7 +189,7 @@ pub fn load_app(
         args = [vec![real_interp_path.clone()], args].concat();
         return load_app(real_interp_path, args, envs, memory_set);
     }
-
+    info!("args: {:?}", args);
     let elf_base_addr = Some(0x400_0000);
     axlog::warn!("The elf base addr may be different in different arch!");
     // let (entry, segments, relocate_pairs) = parse_elf(&elf, elf_base_addr);
@@ -270,22 +270,23 @@ pub fn time_stat_output() -> (usize, usize, usize, usize) {
     curr_task.time_stat_output()
 }
 
+/// To deal with the page fault
 pub fn handle_page_fault(addr: VirtAddr, flags: MappingFlags) {
     axlog::debug!("'page fault' addr: {:?}, flags: {:?}", addr, flags);
     let current_process = current_process();
     axlog::debug!(
         "memory token : {:#x}",
-        current_process.memory_set.lock().page_table_token()
+        current_process.memory_set.lock().lock().page_table_token()
     );
 
     if current_process
         .memory_set
         .lock()
+        .lock()
         .handle_page_fault(addr, flags)
         .is_ok()
     {
-        // Change flush all memory to just the error page addr.
-        flush_tlb(Some(addr));
+        axhal::arch::flush_tlb(None);
     } else {
         #[cfg(feature = "signal")]
         let _ = send_signal_to_thread(current().id().as_u64() as isize, SignalNo::SIGSEGV as isize);
@@ -311,11 +312,12 @@ pub unsafe fn wait_pid(pid: isize, exit_code_ptr: *mut i32) -> Result<u64, WaitS
             answer_status = WaitStatus::Running;
             if let Some(exit_code) = child.get_code_if_exit() {
                 answer_status = WaitStatus::Exited;
+                info!("wait pid _{}_ with code _{}_", child.pid(), exit_code);
                 exit_task_id = index;
                 if !exit_code_ptr.is_null() {
                     unsafe {
                         // 因为没有切换页表，所以可以直接填写
-                        *exit_code_ptr = exit_code;
+                        *exit_code_ptr = exit_code << 8;
                     }
                 }
                 answer_id = child.pid();
@@ -325,10 +327,11 @@ pub unsafe fn wait_pid(pid: isize, exit_code_ptr: *mut i32) -> Result<u64, WaitS
             // 找到了对应的进程
             if let Some(exit_code) = child.get_code_if_exit() {
                 answer_status = WaitStatus::Exited;
+                info!("wait pid _{}_ with code _{:?}_", child.pid(), exit_code);
                 exit_task_id = index;
                 if !exit_code_ptr.is_null() {
                     unsafe {
-                        *exit_code_ptr = exit_code;
+                        *exit_code_ptr = exit_code << 8;
                         // 用于WEXITSTATUS设置编码
                     }
                 }
@@ -352,14 +355,17 @@ pub fn yield_now_task() {
     axtask::yield_now();
 }
 
+/// 以进程作为中转调用task的sleep
 pub fn sleep_now_task(dur: core::time::Duration) {
     axtask::sleep(dur);
 }
 
+/// current running task
 pub fn current_task() -> CurrentTask {
     axtask::current()
 }
 
+/// 设置当前任务的clear_child_tid
 pub fn set_child_tid(tid: usize) {
     let curr = current_task();
     curr.set_clear_child_tid(tid);

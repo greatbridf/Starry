@@ -11,8 +11,10 @@ use axsync::Mutex;
 
 use crate::current_process;
 #[allow(unused)]
+/// The file descriptor used to specify the current working directory of a process
 pub const AT_FDCWD: usize = -100isize as usize;
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]
+/// A struct to represent a file path, which will be canonicalized
 pub struct FilePath(String);
 
 impl FilePath {
@@ -32,6 +34,7 @@ impl FilePath {
         // assert!(!path.ends_with("/"), "path should not end with '/', link only support file");      // 链接只支持文件
         Ok(Self(new_path))
     }
+
     /// 获取路径
     pub fn path(&self) -> &str {
         &self.0
@@ -250,25 +253,46 @@ pub fn create_link(src_path: &FilePath, dest_path: &FilePath) -> bool {
         debug!("link dest file not exists");
         return false;
     }
+
+    // 一次性锁定LINK_PATH_MAP，避免重复加锁解锁
     let mut map = LINK_PATH_MAP.lock();
-    // 如果需要连接的文件已经存在
+
+    // 检查链接是否已存在，并处理旧链接
     if let Some(old_dest_path) = map.get(&src_path.path().to_string()) {
-        // 如果不是当前链接，那么删除旧链接; 否则不做任何事
-        if old_dest_path.eq(&dest_path.path().to_string()) {
+        if old_dest_path != &dest_path.path().to_string() {
+            // 旧链接存在且与新链接不同，移除旧链接
+            drop(map); // 释放锁，因为remove_link可能需要锁
+            remove_link(src_path);
+            map = LINK_PATH_MAP.lock(); // 重新获取锁
+        } else {
+            // 链接已存在且相同，无需进一步操作
             debug!("link already exists");
             return true;
         }
-        remove_link(src_path);
     }
-    // 创建链接
-    map.insert(src_path.path().to_string(), dest_path.path().to_string());
-    // 更新链接数
+
+    // 创建新链接
+    map.insert(
+        src_path.path().to_string(),
+        dest_path.path().to_string().clone(),
+    );
+
+    // 更新链接计数
     let mut count_map = LINK_COUNT_MAP.lock();
     let count = count_map.entry(dest_path.path().to_string()).or_insert(0);
     *count += 1;
     true
 }
 
+/// To deal with the path and return the canonicalized path
+///
+/// * `dir_fd` - The file descriptor of the directory, if it is AT_FDCWD, the call operates on the current working directory
+///
+/// * `path_addr` - The address of the path, if it is null, the call operates on the file that is specified by `dir_fd`
+///
+/// * `force_dir` - If true, the path will be treated as a directory
+///
+/// The path will be dealt with links and the path will be canonicalized
 pub fn deal_with_path(
     dir_fd: usize,
     path_addr: Option<*const u8>,
@@ -293,13 +317,6 @@ pub fn deal_with_path(
         }
     }
 
-    if force_dir {
-        path = format!("{}/", path);
-    }
-    if path.ends_with('.') {
-        // 如果path以.或..结尾, 则加上/告诉FilePath::new它是一个目录
-        path = format!("{}/", path);
-    }
     if path.is_empty() {
         // If pathname is an empty string, in this case, dirfd can refer to any type of file, not just a directory
         // and the behavior of fstatat() is similar to that of fstat()
@@ -347,6 +364,13 @@ pub fn deal_with_path(
                 return None;
             }
         }
+    }
+    if force_dir && !path.ends_with('/') {
+        path = format!("{}/", path);
+    }
+    if path.ends_with('.') {
+        // 如果path以.或..结尾, 则加上/告诉FilePath::new它是一个目录
+        path = format!("{}/", path);
     }
     match FilePath::new(path.as_str()) {
         Ok(path) => Some(path),

@@ -1,6 +1,6 @@
 use alloc::collections::VecDeque;
 use alloc::sync::Arc;
-use axhal::arch::flush_tlb;
+
 #[cfg(feature = "monolithic")]
 use axhal::KERNEL_PROCESS_ID;
 use lazy_init::LazyInit;
@@ -9,27 +9,32 @@ use spinlock::SpinNoIrq;
 
 use crate::task::{CurrentTask, TaskState};
 use crate::{AxTaskRef, Scheduler, TaskInner, WaitQueue};
-
+#[cfg(feature = "monolithic")]
 use crate_interface::call_interface;
 
 // TODO: per-CPU
+/// The running task-queue of the kernel.
 pub static RUN_QUEUE: LazyInit<SpinNoIrq<AxRunQueue>> = LazyInit::new();
 
 // TODO: per-CPU
+/// The exited task-queue of the kernel.
 pub static EXITED_TASKS: SpinNoIrq<VecDeque<AxTaskRef>> = SpinNoIrq::new(VecDeque::new());
 
 static WAIT_FOR_EXIT: WaitQueue = WaitQueue::new();
 
 #[percpu::def_percpu]
+/// The idle task of the kernel.
 pub static IDLE_TASK: LazyInit<AxTaskRef> = LazyInit::new();
 
+/// The struct to define the running task-queue of the kernel.
 pub struct AxRunQueue {
     scheduler: Scheduler,
 }
 
 #[crate_interface::def_interface]
+/// VforkSet for syscall vfork
 pub trait VforkSet {
-    // Set vfork status through process_id
+    /// Set vfork status through process_id
     fn vfork_set(&self, process_id: u64, value: bool);
 }
 
@@ -265,10 +270,9 @@ impl AxRunQueue {
             assert!(Arc::strong_count(&next_task) >= 1);
             #[cfg(feature = "monolithic")]
             {
-                let page_table_token = next_task.page_table_token;
+                let page_table_token = *next_task.page_table_token.get();
                 if page_table_token != 0 {
-                    axhal::arch::write_page_table_root(page_table_token.into());
-                    flush_tlb(None);
+                    axhal::arch::write_page_table_root0(page_table_token.into());
                 }
             }
 

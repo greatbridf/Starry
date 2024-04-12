@@ -17,8 +17,8 @@ ifeq ($(APP_TYPE),c)
   lib_features := fp_simd alloc multitask fs net fd pipe select epoll
 else
   ifneq ($(findstring monolithic,$(APP)),)
-    ax_feat_prefix := syscall_entry/
-    lib_feat_prefix := syscall_entry/
+    ax_feat_prefix := axstarry/
+    lib_feat_prefix := axstarry/
   else 
     # TODO: it's better to use `axfeat/` as `ax_feat_prefix`, but all apps need to have `axfeat` as a dependency
     ax_feat_prefix := axstd/
@@ -42,6 +42,9 @@ else ifneq ($(findstring monolithic,$(APP)),)
   endif
   ifneq ($(filter fs net pipe select epoll,$(FEATURES)),)
     override FEATURES += fd
+  endif
+  ifeq ($(filter ext4fs,$(FEATURES)),)
+    override FEATURES += fatfs
   endif
 endif
 

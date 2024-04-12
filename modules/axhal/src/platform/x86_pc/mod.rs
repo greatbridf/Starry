@@ -19,7 +19,6 @@ pub mod console {
     pub use super::uart16550::*;
 }
 
-#[cfg(target_arch = "x86_64")]
 pub use dtables::set_tss_stack_top;
 
 extern "C" {
@@ -68,4 +67,9 @@ pub fn platform_init() {
 pub fn platform_init_secondary() {
     self::apic::init_secondary();
     self::time::init_secondary();
+}
+
+/// Returns the name of the platform.
+pub fn platform_name() -> &'static str {
+    "x86_pc"
 }
