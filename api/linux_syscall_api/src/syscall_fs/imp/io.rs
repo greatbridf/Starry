@@ -10,7 +10,7 @@ use axfs::api::{FileIOType, OpenFlags, SeekFrom};
 
 use axlog::{debug, info};
 use axprocess::current_process;
-use axprocess::link::{create_link, deal_with_path, real_path, AT_FDCWD};
+use axprocess::link::{create_link, deal_with_path, real_path};
 
 use crate::syscall_fs::ctype::{
     dir::new_dir,
@@ -257,6 +257,7 @@ pub fn syscall_pipe2(args: [usize; 6]) -> SyscallResult {
 /// 返回值:成功执行,返回0。失败,返回-1。
 ///
 /// 注意:`fd[2]`是32位数组,所以这里的 fd 是 u32 类型的指针,而不是 usize 类型的指针。
+#[cfg(target_arch = "x86_64")]
 pub fn syscall_pipe(mut args: [usize; 6]) -> SyscallResult {
     args[1] = 0;
     syscall_pipe2(args)
@@ -295,6 +296,7 @@ pub fn syscall_dup(args: [usize; 6]) -> SyscallResult {
 /// * fd: usize, 原文件所在的文件描述符
 /// * new_fd: usize, 新的文件描述符
 /// 返回值:成功执行,返回新的文件描述符。失败,返回-1。
+#[cfg(target_arch = "x86_64")]
 pub fn syscall_dup2(args: [usize; 6]) -> SyscallResult {
     syscall_dup3(args)
 }
@@ -404,7 +406,10 @@ pub fn syscall_openat(args: [usize; 6]) -> SyscallResult {
 ///
 /// 说明:如果打开的是一个目录,那么返回的文件描述符指向的是该目录的描述符。(后面会用到针对目录的文件描述符)
 /// flags: O_RDONLY: 0, O_WRONLY: 1, O_RDWR: 2, O_CREAT: 64, O_DIRECTORY: 65536
+#[cfg(target_arch = "x86_64")]
 pub fn syscall_open(args: [usize; 6]) -> SyscallResult {
+    use axprocess::link::AT_FDCWD;
+
     let temp_args = [AT_FDCWD, args[0], args[1], args[2], 0, 0];
     syscall_openat(temp_args)
 }
@@ -598,7 +603,7 @@ pub fn syscall_readlinkat(args: [usize; 6]) -> SyscallResult {
         return Ok(file_real_path.len() as isize);
     }
 
-    if path.path().to_string() != real_path(&(path.path().to_string())) {
+    if *path.path() != real_path(&(path.path().to_string())) {
         // 说明链接存在
         let path = path.path();
         let len = bufsiz.min(path.len());
@@ -618,7 +623,10 @@ pub fn syscall_readlinkat(args: [usize; 6]) -> SyscallResult {
 /// * `path`: *const u8
 /// * `buf`: *mut u8
 /// * `bufsiz`: usize
+#[cfg(target_arch = "x86_64")]
 pub fn syscall_readlink(args: [usize; 6]) -> SyscallResult {
+    use axprocess::link::AT_FDCWD;
+
     let temp_args = [AT_FDCWD, args[0], args[1], args[2], 0, 0];
     syscall_readlinkat(temp_args)
 }

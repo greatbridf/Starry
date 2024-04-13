@@ -537,30 +537,10 @@ dependencies = [
 name = "axstarry"
 version = "0.1.0"
 dependencies = [
- "arceos_api",
- "axconfig",
- "axerrno",
  "axfeat",
- "axfs",
- "axhal",
  "axlibc",
  "axlog",
- "axmem",
- "axnet",
- "axprocess",
- "axruntime",
- "axsignal",
- "axsync",
- "axtask",
- "bitflags 2.4.0",
- "cfg-if",
- "crate_interface",
- "kernel_guard",
- "lazy_init",
- "num_enum",
- "numeric-enum-macro",
- "rand",
- "spinlock",
+ "linux_syscall_api",
 ]
 
 [[package]]
@@ -1349,6 +1329,34 @@ name = "linux-raw-sys"
 version = "0.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "57bcfdad1b858c2db7c38303a6d2ad4dfaf5eb53dfeb0910128b2c26d6158503"
+
+[[package]]
+name = "linux_syscall_api"
+version = "0.1.0"
+dependencies = [
+ "axconfig",
+ "axerrno",
+ "axfeat",
+ "axfs",
+ "axhal",
+ "axlog",
+ "axmem",
+ "axnet",
+ "axprocess",
+ "axruntime",
+ "axsignal",
+ "axsync",
+ "axtask",
+ "bitflags 2.4.0",
+ "cfg-if",
+ "crate_interface",
+ "kernel_guard",
+ "lazy_init",
+ "num_enum",
+ "numeric-enum-macro",
+ "rand",
+ "spinlock",
+]
 
 [[package]]
 name = "lock_api"

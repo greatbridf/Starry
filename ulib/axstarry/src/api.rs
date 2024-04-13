@@ -1,78 +1,42 @@
-extern crate alloc;
-
 use alloc::string::String;
-use alloc::sync::Arc;
-use axhal::{
-    arch::{flush_tlb, write_page_table_root},
-    KERNEL_PROCESS_ID,
-};
-use axprocess::{yield_now_task, PID2PC};
-use axruntime::KERNEL_PAGE_TABLE;
-use axtask::{TaskId, EXITED_TASKS};
-
-use axerrno::AxResult;
-use axfs::api::{File, OpenFlags};
-
-/// 若使用多次new file打开同名文件，那么不同new file之间读写指针不共享，但是修改的内容是共享的
-pub fn new_file(path: &str, flags: &OpenFlags) -> AxResult<File> {
-    let mut file = File::options();
-    file.read(flags.readable());
-    file.write(flags.writable());
-    file.create(flags.creatable());
-    file.create_new(flags.new_creatable());
-    file.open(path)
-}
-/// 在完成一次系统调用之后，恢复全局目录
-pub fn init_current_dir() {
-    axfs::api::set_current_dir("/").expect("reset current dir failed");
-}
-
-/// Flags for opening a file
-pub type FileFlags = OpenFlags;
-
-/// 释放所有非内核进程
-pub fn recycle_user_process() {
-    let kernel_process = Arc::clone(PID2PC.lock().get(&KERNEL_PROCESS_ID).unwrap());
-
-    loop {
-        let pid2pc = PID2PC.lock();
-
-        kernel_process
-            .children
-            .lock()
-            .retain(|x| x.pid() == KERNEL_PROCESS_ID || pid2pc.contains_key(&x.pid()));
-        let all_finished = pid2pc.len() == 1;
-        drop(pid2pc);
-        if all_finished {
-            break;
-        }
-        yield_now_task();
+use alloc::vec;
+use alloc::vec::Vec;
+use linux_syscall_api::read_file;
+/// To get the environment variables of the application
+///
+/// # TODO
+/// Now the environment variables are hard coded, we need to read the file "/etc/environment" to get the environment variables
+pub fn get_envs() -> Vec<String> {
+    // Const string for environment variables
+    let mut envs:Vec<String> = vec![
+        "SHLVL=1".into(),
+        "PWD=/".into(),
+        "GCC_EXEC_PREFIX=/riscv64-linux-musl-native/bin/../lib/gcc/".into(),
+        "COLLECT_GCC=./riscv64-linux-musl-native/bin/riscv64-linux-musl-gcc".into(),
+        "COLLECT_LTO_WRAPPER=/riscv64-linux-musl-native/bin/../libexec/gcc/riscv64-linux-musl/11.2.1/lto-wrapper".into(),
+        "COLLECT_GCC_OPTIONS='-march=rv64gc' '-mabi=lp64d' '-march=rv64imafdc' '-dumpdir' 'a.'".into(),
+        "LIBRARY_PATH=/lib/".into(),
+        "LD_LIBRARY_PATH=/lib/".into(),
+        "LD_DEBUG=files".into(),
+    ];
+    // read the file "/etc/environment"
+    // if exist, then append the content to envs
+    // else set the environment variable to default value
+    if let Some(environment_vars) = read_file("/etc/environment") {
+        envs.push(environment_vars);
+    } else {
+        envs.push("PATH=/usr/sbin:/usr/bin:/sbin:/bin".into());
     }
-    TaskId::clear();
-    unsafe {
-        write_page_table_root(KERNEL_PAGE_TABLE.root_paddr());
-        flush_tlb(None);
-    };
-    EXITED_TASKS.lock().clear();
-    init_current_dir();
+    envs
+}
+/// To run a testcase with the given name, which will be used in initproc
+///
+/// The environment variables are hard coded, we need to read the file "/etc/environment" to get the environment variables
+pub fn run_testcase(testcase: &str) {
+    linux_syscall_api::run_testcase(testcase, get_envs());
 }
 
-/// To print a string
+/// To print a string to the console
 pub fn println(s: &str) {
     axlog::ax_println!("{}", s);
-}
-
-/// To read a file with the given path
-pub fn read_file(path: &str) -> Option<String> {
-    axfs::api::read_to_string(path).ok()
-}
-
-/// Write a slice as the entire contents of a file.
-pub fn write<C: AsRef<[u8]>>(path: &str, contents: C) -> Option<()> {
-    axfs::api::write(path, contents).ok()
-}
-
-/// Creates a new, empty directory at the provided path.
-pub fn create_dir(path: &str) -> Option<()> {
-    axfs::api::create_dir(path).ok()
 }

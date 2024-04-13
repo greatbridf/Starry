@@ -77,7 +77,6 @@ pub fn futex(
                 if timeout == 0 {
                     yield_now_task();
                 }
-                #[cfg(feature = "signal")]
                 {
                     use core::time::Duration;
                     if timeout != 0

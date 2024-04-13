@@ -5,7 +5,6 @@ use axconfig::SMP;
 use axhal::mem::VirtAddr;
 use axprocess::{current_process, current_task, PID2PC, TID2TASK};
 
-// #[cfg(feature = "signal")]
 use axtask::{SchedPolicy, SchedStatus};
 
 use crate::{SchedParam, SyscallError, SyscallResult};

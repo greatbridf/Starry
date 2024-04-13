@@ -75,7 +75,7 @@ members = [
     "apps/task/priority",
     "apps/task/tls",
     "apps/monolithic_userboot"
-]
+, "api/linux_syscall_api"]
 
 [profile.release]
 lto = true

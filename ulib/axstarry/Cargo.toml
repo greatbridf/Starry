@@ -8,53 +8,49 @@ description = "ArceOS user program library for linux apps with posix_syscall"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-default = ["monolithic", "futex", "signal", "net"]
+default = ["monolithic"]
 
-monolithic = ["arceos_api/monolithic", "axfeat/monolithic", "paging", "fs", "multitask", "irq"]
+monolithic = ["linux_syscall_api/monolithic", "axfeat/monolithic", "paging", "fs", "multitask", "irq", "signal", "net"]
 
-img = ["axruntime/img"]
+img = ["linux_syscall_api/img"]
 
 # Multicore
-smp = ["axfeat/smp", "spinlock/smp"]
-
+smp = ["axfeat/smp"]
 
 # Floating point/SIMD
 fp_simd = ["axfeat/fp_simd"]
 
 # Interrupts
-irq = ["arceos_api/irq", "axfeat/irq"]
+irq = ["linux_syscall_api/irq", "axfeat/irq"]
 
 # Memory
-paging = ["axfeat/paging"]
+paging = ["axfeat/paging", "linux_syscall_api/paging"]
 tls = ["axfeat/tls"]
 
 # Multi-threading and scheduler
-multitask = ["arceos_api/multitask", "axfeat/multitask"]
+multitask = ["linux_syscall_api/multitask", "axfeat/multitask"]
 sched_fifo = ["axfeat/sched_fifo"]
 sched_rr = ["axfeat/sched_rr"]
 sched_cfs = ["axfeat/sched_cfs"]
 
 # Display
-display = ["arceos_api/display", "axfeat/display"]
+display = ["axfeat/display"]
 
 # Bus-Pci
 bus-pci = ["axfeat/bus-pci"]
 
 # Fs
-fd = []
-fs = ["axruntime/fs", "arceos_api/fs", "fd"]
-fatfs = ["axfeat/fatfs"]
-ext4fs = ["axfeat/ext4fs", "dep:axlibc"]
+fs = ["linux_syscall_api/fs"]
+fatfs = ["linux_syscall_api/fatfs"]
+ext4fs = ["linux_syscall_api/ext4fs", "axlibc/fs"]
+myfs = ["linux_syscall_api/myfs"]
+devfs = []
 
 # Signal
-signal = ["axfeat/signal", "dep:axsignal"]
-
-# Futex
-futex = ["axfeat/futex"]
+signal = ["linux_syscall_api/signal"]
 
 # Network
-ip = ["axnet/ip"]
-net = ["ip", "arceos_api/net", "axfeat/net", "dep:axsync"]
+net = ["linux_syscall_api/net"]
 
 # Logging
 log-level-off = ["axfeat/log-level-off"]
@@ -64,31 +60,8 @@ log-level-info = ["axfeat/log-level-info"]
 log-level-debug = ["axfeat/log-level-debug"]
 log-level-trace = ["axfeat/log-level-trace"]
 
-devfs = []
-
 [dependencies]
-cfg-if = "1.0"
+linux_syscall_api = { path = "../../api/linux_syscall_api" }
 axfeat = { path = "../../api/axfeat" }
-arceos_api = { path = "../../api/arceos_api" }
+axlibc = { path = "../axlibc", optional = true }
 axlog = { path = "../../modules/axlog" }
-axfs = { path = "../../modules/axfs" }
-axruntime = { path = "../../modules/axruntime" }
-axhal = { path = "../../modules/axhal" }
-axtask = { path = "../../modules/axtask" }
-axnet = { path = "../../modules/axnet", optional = true }
-axprocess = { path = "../../modules/axprocess" }
-axsignal = { path = "../../modules/axsignal", optional = true }
-axlibc = { path = "../../ulib/axlibc", features = ["fp_simd", "alloc", "fs", "fd"], optional = true }
-axconfig = { path = "../../modules/axconfig" }
-axsync = { path = "../../modules/axsync", optional = true }
-axmem = { path = "../../modules/axmem" }
-
-crate_interface = { path = "../../crates/crate_interface" }
-lazy_init = { path = "../../crates/lazy_init" }
-spinlock = { path = "../../crates/spinlock" }
-kernel_guard = { path = "../../crates/kernel_guard" }
-axerrno = { path = "../../crates/axerrno" }
-numeric-enum-macro = { git = "https://github.com/mexus/numeric-enum-macro" }
-bitflags = "2.0"
-rand = { version = "0.8.5", default-features = false, features = ["small_rng"] }
-num_enum = { version = "0.5.11", default-features = false }

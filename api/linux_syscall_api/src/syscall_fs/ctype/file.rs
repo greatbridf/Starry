@@ -10,7 +10,7 @@ use axfs::api::{File, FileIO, FileIOType, Kstat, OpenFlags, Read, Seek, SeekFrom
 
 use axlog::debug;
 
-use crate::{new_file, normal_file_mode, StMode, TimeSecs};
+use crate::{normal_file_mode, StMode, TimeSecs};
 use axprocess::link::get_link_count;
 use axsync::Mutex;
 
@@ -198,7 +198,7 @@ impl FileDesc {
 /// 新建一个文件描述符
 pub fn new_fd(path: String, flags: OpenFlags) -> AxResult<FileDesc> {
     debug!("Into function new_fd, path: {}", path);
-    let file = new_file(path.as_str(), &flags)?;
+    let file = crate::syscall_fs::new_file(path.as_str(), &flags)?;
     // let file_size = file.metadata()?.len();
 
     let fd = FileDesc::new(path.as_str(), Arc::new(Mutex::new(file)), flags);

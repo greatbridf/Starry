@@ -18,9 +18,6 @@ monolithic = ["axruntime/monolithic", "axhal/monolithic", "dep:axprocess"]
 # Signal
 signal = ["axruntime/signal"]
 
-# Futex support
-futex = ["axprocess/futex"]
-
 # Multicore
 smp = ["axhal/smp", "axruntime/smp", "spinlock/smp"]
 

@@ -1,7 +1,7 @@
-//! Init some files and links for the apps
+//! Init some files and links in the filesystem for the apps
 
 use alloc::{format, string::ToString};
-use axstarry::{create_link, new_file, FileFlags, FilePath};
+use linux_syscall_api::{create_link, new_file, FileFlags, FilePath};
 
 /// 在执行系统调用前初始化文件系统
 ///

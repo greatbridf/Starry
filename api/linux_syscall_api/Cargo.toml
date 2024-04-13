@@ -1,0 +1,61 @@
+[package]
+name = "linux_syscall_api"
+version = "0.1.0"
+edition = "2021"
+authors = ["Youjie Zheng <zyj578335934@gmail.com>"]
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+
+[features]
+default = ["monolithic"]
+
+monolithic = ["axfeat/monolithic", "paging", "fs", "multitask", "irq", "signal", "net"]
+
+img = ["axruntime/img"]
+
+# Interrupts
+irq = ["axfeat/irq"]
+
+# Memory
+paging = ["axfeat/paging"]
+
+# Multi-threading and scheduler
+multitask = ["axtask/multitask", "axfeat/multitask"]
+
+# Fs
+fs = ["axfeat/fs"]
+fatfs = ["axfeat/fatfs"]
+ext4fs = ["axfeat/ext4fs"]
+myfs = ["axfeat/myfs"]
+
+# Signal
+signal = ["axfeat/signal", "dep:axsignal"]
+
+# Network
+ip = ["axnet/ip"]
+net = ["ip", "dep:axnet", "axfeat/net", "dep:axsync"]
+
+[dependencies]
+cfg-if = "1.0"
+axfeat = { path = "../axfeat" }
+axlog = { path = "../../modules/axlog" }
+axfs = { path = "../../modules/axfs" }
+axruntime = { path = "../../modules/axruntime" }
+axhal = { path = "../../modules/axhal" }
+axtask = { path = "../../modules/axtask" }
+axnet = { path = "../../modules/axnet", optional = true }
+axprocess = { path = "../../modules/axprocess" }
+axsignal = { path = "../../modules/axsignal", optional = true }
+axconfig = { path = "../../modules/axconfig" }
+axsync = { path = "../../modules/axsync", optional = true }
+axmem = { path = "../../modules/axmem" }
+
+crate_interface = { path = "../../crates/crate_interface" }
+lazy_init = { path = "../../crates/lazy_init" }
+spinlock = { path = "../../crates/spinlock" }
+kernel_guard = { path = "../../crates/kernel_guard" }
+axerrno = { path = "../../crates/axerrno" }
+numeric-enum-macro = { git = "https://github.com/mexus/numeric-enum-macro" }
+bitflags = "2.0"
+rand = { version = "0.8.5", default-features = false, features = ["small_rng"] }
+num_enum = { version = "0.5.11", default-features = false }
