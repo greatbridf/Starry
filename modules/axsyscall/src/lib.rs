@@ -17,6 +17,9 @@ pub const AT_EMPTY_PATH: isize = 0x1000;
 
 pub fn do_syscall(args: SyscallArgs, sysno: usize) -> usize {
     match sysno {
+        LINUX_SYSCALL_IOCTL => {
+            linux_syscall_ioctl(args)
+        },
         LINUX_SYSCALL_FACCESSAT => {
             linux_syscall_faccessat(args)
         },
@@ -101,6 +104,7 @@ pub fn do_syscall(args: SyscallArgs, sysno: usize) -> usize {
 //
 // Linux syscall
 //
+const LINUX_SYSCALL_IOCTL:      usize = 0x1d;
 const LINUX_SYSCALL_FACCESSAT:  usize = 0x30;
 const LINUX_SYSCALL_OPENAT:     usize = 0x38;
 const LINUX_SYSCALL_CLOSE:      usize = 0x39;
@@ -165,8 +169,12 @@ pub fn get_user_str(ptr: usize) -> String {
     s
 }
 
-fn linux_syscall_faccessat(_args: SyscallArgs) -> usize {
-    warn!("linux_syscall_faccessat");
+fn linux_syscall_faccessat(args: SyscallArgs) -> usize {
+    let [dfd, filename, mode, ..] = args;
+    info!("linux_syscall_faccessat dfd {:#X} filename {:#X} mode {}",
+           dfd, filename, mode);
+    let filename = get_user_str(filename);
+    warn!("filename: {}", filename);
     0
 }
 
@@ -198,7 +206,6 @@ fn linux_syscall_write(args: SyscallArgs) -> usize {
     info!("write: {:#x}, {:#x}, {:#x}", fd, buf, size);
 
     let buf = unsafe { core::slice::from_raw_parts(buf as *const u8, size) };
-
     fileops::write(buf)
 }
 
@@ -233,6 +240,11 @@ fn linux_syscall_mmap(args: SyscallArgs) -> usize {
     mmap::mmap(va, len, prot, flags, fd, offset).unwrap()
 }
 
+fn linux_syscall_ioctl(args: SyscallArgs) -> usize {
+    let [fd, request, udata, ..] = args;
+    fileops::ioctl(fd, request, udata)
+}
+
 fn linux_syscall_mprotect(_args: SyscallArgs) -> usize {
     warn!("impl linux_syscall_mprotect");
     0
@@ -253,8 +265,9 @@ fn linux_syscall_prlimit64(args: SyscallArgs) -> usize {
     sys::prlimit64(pid, resource, new_rlim, old_rlim)
 }
 
-fn linux_syscall_getrandom(_args: SyscallArgs) -> usize {
-    warn!("impl linux_syscall_getrandom");
+fn linux_syscall_getrandom(args: SyscallArgs) -> usize {
+    let [buf, len, flags, ..] = args;
+    warn!("impl linux_syscall_getrandom buf {:#X}, len {} flags {:#X}", buf, len, flags);
     0
 }
 
@@ -263,8 +276,10 @@ fn linux_syscall_clock_gettime(_args: SyscallArgs) -> usize {
     0
 }
 
-fn linux_syscall_rt_sigprocmask(_args: SyscallArgs) -> usize {
-    warn!("impl linux_syscall_rt_sigprocmask");
+fn linux_syscall_rt_sigprocmask(args: SyscallArgs) -> usize {
+    let [how, set, oldset, sigsetsize, ..] = args;
+    warn!("impl linux_syscall_rt_sigprocmask how {} set {:#X} oldset {:#X} size {}",
+          how, set, oldset, sigsetsize);
     0
 }
 

@@ -126,6 +126,7 @@ fn get_arg_page(_entry: usize, args: &[&str]) -> LinuxResult<usize> {
     mmap::_mmap(va, STACK_SIZE, 0, MAP_FIXED|MAP_ANONYMOUS, None, 0)?;
     let direct_va = mmap::faultin_page(TASK_SIZE - PAGE_SIZE_4K);
     let mut stack = UserStack::new(TASK_SIZE, direct_va+PAGE_SIZE_4K);
+    stack.push(&[null::<u64>()]);
 
     let random_str: &[usize; 2] = &[3703830112808742751usize, 7081108068768079778usize];
     stack.push(random_str.as_slice());

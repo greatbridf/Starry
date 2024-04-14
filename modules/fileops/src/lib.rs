@@ -25,7 +25,7 @@ pub fn openat(_dtd: usize, filename: &str, _flags: usize, _mode: usize) -> usize
         },
     };
     let fd = current.filetable.lock().insert(Arc::new(Mutex::new(file)));
-    error!("openat fd {}", fd);
+    error!("-------------- openat fd {}", fd);
     fd
 }
 
@@ -101,6 +101,31 @@ pub struct KernelStat {
 }
 
 pub fn fstatat(dirfd: usize, _path: &str, statbuf_ptr: usize, _flags: usize) -> usize {
+    if dirfd == 1 {
+        // Todo: Handle stdin(0), stdout(1) and stderr(2)
+        let statbuf = statbuf_ptr as *mut KernelStat;
+        axhal::arch::enable_sum();
+        unsafe {
+            *statbuf = KernelStat {
+                st_mode: 0x2180,
+                st_nlink: 1,
+                st_blksize: 0x1000,
+                st_ino: 0x2a,
+                st_dev: 2,
+                st_rdev: 0x500001,
+                st_size: 0,
+                st_blocks: 0,
+                //st_uid: 1000,
+                //st_gid: 1000,
+                ..Default::default()
+            };
+        }
+        axhal::arch::disable_sum();
+        return 0;
+    }
+
+    assert!(dirfd > 2);
+
     let current = task::current();
     let filetable = current.filetable.lock();
     let file = match filetable.get_file(dirfd) {
@@ -129,6 +154,51 @@ pub fn fstatat(dirfd: usize, _path: &str, statbuf_ptr: usize, _flags: usize) -> 
             st_blocks: metadata.blocks() as _,
             st_blksize: 512,
             ..Default::default()
+        };
+    }
+    axhal::arch::disable_sum();
+    0
+}
+
+// IOCTL
+const TCGETS: usize = 0x5401;
+
+const NCCS: usize = 19;
+
+#[derive(Debug, Clone, Copy, Default)]
+#[repr(C)]
+struct Termios {
+    c_iflag: u32,   /* input mode flags */
+    c_oflag: u32,   /* output mode flags */
+    c_cflag: u32,   /* control mode flags */
+    c_lflag: u32,   /* local mode flags */
+    c_line:  u8,    /* line discipline */
+    c_cc:    [u8; NCCS], /* control characters */
+}
+
+pub fn ioctl(fd: usize, request: usize, udata: usize) -> usize {
+    info!("linux_syscall_ioctl fd {}, request {:#X}, udata {:#X}",
+        fd, request, udata);
+
+    assert_eq!(fd, 1);
+    assert_eq!(request, TCGETS);
+
+    let cc: [u8; NCCS] = [
+        0x3, 0x1c, 0x7f, 0x15, 0x4, 0x0, 0x1, 0x0,
+        0x11, 0x13, 0x1a, 0x0, 0x12, 0xf, 0x17, 0x16,
+        0x0, 0x0, 0x0,
+    ];
+
+    let ubuf = udata as *mut Termios;
+    axhal::arch::enable_sum();
+    unsafe {
+        *ubuf = Termios {
+            c_iflag: 0x500,
+            c_oflag: 0x5,
+            c_cflag: 0xcbd,
+            c_lflag: 0x8a3b,
+            c_line: 0,
+            c_cc: cc,
         };
     }
     axhal::arch::disable_sum();

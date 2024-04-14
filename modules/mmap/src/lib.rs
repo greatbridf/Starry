@@ -45,7 +45,7 @@ pub fn _mmap(
         debug!("Get unmapped vma {:#X}", va);
     }
 
-    debug!("mmap region: {:#X} - {:#X}", va, va + len);
+    info!("mmap region: {:#X} - {:#X}", va, va + len);
     let vma = VmAreaStruct::new(va, va + len, offset >> PAGE_SHIFT, file, flags);
     let mm = task::current().mm();
     mm.lock().vmas.insert(va, vma);
