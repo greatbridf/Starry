@@ -33,6 +33,11 @@ pub fn getpid() -> usize {
     taskctx::current_ctx().tgid()
 }
 
+pub fn getgid() -> usize {
+    warn!("impl getgid");
+    0
+}
+
 pub fn prlimit64(
     pid: Pid,
     resource: usize,

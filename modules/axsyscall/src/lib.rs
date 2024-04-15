@@ -23,6 +23,12 @@ pub fn do_syscall(args: SyscallArgs, sysno: usize) -> usize {
         LINUX_SYSCALL_FACCESSAT => {
             linux_syscall_faccessat(args)
         },
+        LINUX_SYSCALL_CHMODAT => {
+            linux_syscall_fchmodat(args)
+        },
+        LINUX_SYSCALL_CHOWNAT => {
+            linux_syscall_fchownat(args)
+        },
         LINUX_SYSCALL_MKDIRAT => {
             linux_syscall_mkdirat(args)
         },
@@ -89,6 +95,9 @@ pub fn do_syscall(args: SyscallArgs, sysno: usize) -> usize {
         LINUX_SYSCALL_GETPID => {
             linux_syscall_getpid(args)
         },
+        LINUX_SYSCALL_GETGID => {
+            linux_syscall_getgid(args)
+        },
         LINUX_SYSCALL_TGKILL => {
             linux_syscall_tgkill(args)
         },
@@ -110,6 +119,8 @@ pub fn do_syscall(args: SyscallArgs, sysno: usize) -> usize {
 const LINUX_SYSCALL_IOCTL:      usize = 0x1d;
 const LINUX_SYSCALL_MKDIRAT:    usize = 0x22;
 const LINUX_SYSCALL_FACCESSAT:  usize = 0x30;
+const LINUX_SYSCALL_CHMODAT:    usize = 0x35;
+const LINUX_SYSCALL_CHOWNAT:    usize = 0x36;
 const LINUX_SYSCALL_OPENAT:     usize = 0x38;
 const LINUX_SYSCALL_CLOSE:      usize = 0x39;
 const LINUX_SYSCALL_READ:       usize = 0x3f;
@@ -122,6 +133,7 @@ const LINUX_SYSCALL_EXIT_GROUP: usize = 0x5e;
 const LINUX_SYSCALL_TGKILL:     usize = 0x83;
 const LINUX_SYSCALL_UNAME:      usize = 0xa0;
 const LINUX_SYSCALL_GETPID:     usize = 0xac;
+const LINUX_SYSCALL_GETGID:     usize = 0xb0;
 const LINUX_SYSCALL_GETTID:     usize = 0xb2;
 const LINUX_SYSCALL_BRK:        usize = 0xd6;
 const LINUX_SYSCALL_MUNMAP:     usize = 0xd7;
@@ -179,6 +191,22 @@ fn linux_syscall_faccessat(args: SyscallArgs) -> usize {
            dfd, filename, mode);
     let filename = get_user_str(filename);
     warn!("filename: {}", filename);
+    0
+}
+
+fn linux_syscall_fchownat(args: SyscallArgs) -> usize {
+    let [dfd, pathname, owner, group, flags, ..] = args;
+    let pathname = get_user_str(pathname);
+    warn!("impl fchownat dfd {:#X} path {} owner:group {}:{} flags {:#X}",
+        dfd, pathname, owner, group, flags);
+    0
+}
+
+fn linux_syscall_fchmodat(args: SyscallArgs) -> usize {
+    let [dfd, pathname, mode, flags, ..] = args;
+    let pathname = get_user_str(pathname);
+    warn!("impl fchmodat dfd {:#X} path {} mode {:#o} flags {:#X}",
+        dfd, pathname, mode, flags);
     0
 }
 
@@ -304,6 +332,10 @@ fn linux_syscall_gettid(_args: SyscallArgs) -> usize {
 
 fn linux_syscall_getpid(_args: SyscallArgs) -> usize {
     sys::getpid()
+}
+
+fn linux_syscall_getgid(_args: SyscallArgs) -> usize {
+    sys::getgid()
 }
 
 fn linux_syscall_tgkill(_args: SyscallArgs) -> usize {
