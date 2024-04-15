@@ -45,12 +45,59 @@ pub fn _mmap(
         debug!("Get unmapped vma {:#X}", va);
     }
 
-    info!("mmap region: {:#X} - {:#X}", va, va + len);
-    let vma = VmAreaStruct::new(va, va + len, offset >> PAGE_SHIFT, file, flags);
     let mm = task::current().mm();
+    if let Some(mut overlap) = find_overlap(va, len, flags) {
+        info!("find overlap {:#X}-{:#X}", overlap.vm_start, overlap.vm_end);
+        assert!(va >= overlap.vm_start && va+len <= overlap.vm_end,
+            "{:#X}-{:#X}; overlap {:#X}-{:#X}",
+            va, va+len, overlap.vm_start, overlap.vm_end);
+
+        if va + len < overlap.vm_end {
+            let bias = (va + len - overlap.vm_start) >> PAGE_SHIFT;
+            let mut new = overlap.clone();
+            new.vm_start = va + len;
+            new.vm_pgoff += bias;
+            mm.lock().vmas.insert(va+len, new);
+        }
+        if va > overlap.vm_start {
+            overlap.vm_end = va;
+            mm.lock().vmas.insert(overlap.vm_start, overlap);
+        }
+    }
+
+    info!("mmap region: {:#X} - {:#X}, flags: {:#X}", va, va + len, flags);
+    let vma = VmAreaStruct::new(va, va + len, offset >> PAGE_SHIFT, file, flags);
     mm.lock().vmas.insert(va, vma);
 
     Ok(va)
+}
+
+fn find_overlap(va: usize, len: usize, flags: usize) -> Option<VmAreaStruct> {
+    info!("find_overlap: va {:#X} len {}, flags {:#X}", va, len, flags);
+
+    let mm = task::current().mm();
+    let locked_mm = mm.lock();
+    let ret = locked_mm.vmas.iter().find(|(_, vma)| {
+        in_vma(va, va+len, vma) ||
+        in_range(vma.vm_start, vma.vm_end, va, va+len)
+    });
+
+    if let Some((key, _)) = ret {
+        warn!("### Removed!!!");
+        mm.lock().vmas.remove(&key)
+    } else {
+        None
+    }
+}
+
+#[inline]
+const fn in_range(start: usize, end: usize, r_start: usize, r_end: usize) -> bool {
+    (start >= r_start && start < r_end) || (end > r_start && end <= r_end)
+}
+
+#[inline]
+const fn in_vma(start: usize, end: usize, vma: &VmAreaStruct) -> bool {
+    in_range(start, end, vma.vm_start, vma.vm_end)
 }
 
 pub fn get_unmapped_vma(_va: usize, len: usize) -> usize {
@@ -58,12 +105,14 @@ pub fn get_unmapped_vma(_va: usize, len: usize) -> usize {
     let locked_mm = mm.lock();
     let mut gap_end = TASK_UNMAPPED_BASE;
     for (_, vma) in locked_mm.vmas.iter().rev() {
-        debug!("get_unmapped_vma: {:#X} {:#X} {:#X}",
+        debug!("get_unmapped_vma iterator: {:#X} {:#X} {:#X}",
             vma.vm_start, vma.vm_end, gap_end);
         if vma.vm_end > gap_end {
             continue;
         }
         if gap_end - vma.vm_end >= len {
+            info!("get_unmapped_vma: {:#X} {:#X} {:#X}",
+                vma.vm_start, vma.vm_end, gap_end);
             return gap_end - len;
         }
         gap_end = vma.vm_start;

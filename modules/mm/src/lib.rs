@@ -25,6 +25,7 @@ pub type FileRef = Arc<Mutex<File>>;
 
 static MM_UNIQUE_ID: AtomicUsize = AtomicUsize::new(1);
 
+#[derive(Clone)]
 pub struct VmAreaStruct {
     pub vm_start: usize,
     pub vm_end: usize,
