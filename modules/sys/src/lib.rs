@@ -1,7 +1,7 @@
 #![cfg_attr(not(test), no_std)]
 
 use taskctx::Pid;
-use axerrno::LinuxError;
+//use axerrno::LinuxError;
 use axconfig::TASK_STACK_SIZE;
 
 #[macro_use]
@@ -10,6 +10,7 @@ extern crate log;
 const RLIMIT_STACK: usize = 3;  /* max stack size */
 //const RLIM_NLIMITS: usize = 16;
 
+#[allow(dead_code)]
 struct RLimit64 {
     rlim_cur: u64,
     rlim_max: u64,

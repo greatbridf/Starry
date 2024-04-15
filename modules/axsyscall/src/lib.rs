@@ -23,6 +23,9 @@ pub fn do_syscall(args: SyscallArgs, sysno: usize) -> usize {
         LINUX_SYSCALL_FACCESSAT => {
             linux_syscall_faccessat(args)
         },
+        LINUX_SYSCALL_MKDIRAT => {
+            linux_syscall_mkdirat(args)
+        },
         LINUX_SYSCALL_OPENAT => {
             linux_syscall_openat(args)
         },
@@ -105,6 +108,7 @@ pub fn do_syscall(args: SyscallArgs, sysno: usize) -> usize {
 // Linux syscall
 //
 const LINUX_SYSCALL_IOCTL:      usize = 0x1d;
+const LINUX_SYSCALL_MKDIRAT:    usize = 0x22;
 const LINUX_SYSCALL_FACCESSAT:  usize = 0x30;
 const LINUX_SYSCALL_OPENAT:     usize = 0x38;
 const LINUX_SYSCALL_CLOSE:      usize = 0x39;
@@ -176,6 +180,12 @@ fn linux_syscall_faccessat(args: SyscallArgs) -> usize {
     let filename = get_user_str(filename);
     warn!("filename: {}", filename);
     0
+}
+
+fn linux_syscall_mkdirat(args: SyscallArgs) -> usize {
+    let [dfd, pathname, mode, ..] = args;
+    let pathname = get_user_str(pathname);
+    fileops::mkdirat(dfd, &pathname, mode)
 }
 
 fn linux_syscall_openat(args: SyscallArgs) -> usize {

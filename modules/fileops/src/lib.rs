@@ -10,7 +10,12 @@ use alloc::string::String;
 use axerrno::LinuxError;
 use axfile::fops::File;
 use axfile::fops::OpenOptions;
+use axfile::api::create_dir;
 use mutex::Mutex;
+
+// Special value used to indicate openat should use
+// the current working directory.
+pub const AT_FDCWD: usize = -100isize as usize;
 
 pub fn openat(_dtd: usize, filename: &str, _flags: usize, _mode: usize) -> usize {
     let mut opts = OpenOptions::new();
@@ -203,4 +208,18 @@ pub fn ioctl(fd: usize, request: usize, udata: usize) -> usize {
     }
     axhal::arch::disable_sum();
     0
+}
+
+pub fn mkdirat(dfd: usize, pathname: &str, mode: usize) -> usize {
+    info!("mkdirat: dfd {:#X}, pathname {}, mode {:#X}", dfd, pathname, mode);
+    assert_eq!(dfd, AT_FDCWD);
+
+    let current = task::current();
+    let fs = current.fs.lock();
+    match create_dir(pathname, &fs) {
+        Ok(()) => 0,
+        Err(e) => {
+            (-LinuxError::from(e).code()) as usize
+        },
+    }
 }
