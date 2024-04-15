@@ -1,0 +1,29 @@
+[package]
+name = "arch_boot"
+version = "0.1.0"
+edition = "2021"
+authors = ["Youjie Zheng <zyj578335934@gmail.com>"]
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[features]
+monolithic = ["alloc", "dep:linux_syscall_api"]
+alloc = ["dep:axalloc"]
+smp = ["axruntime/smp"]
+
+[dependencies]
+cfg-if = "1.0"
+log = "0.4"
+linux_syscall_api = { path = "../../api/linux_syscall_api", optional = true }
+axhal = { path = "../../modules/axhal" }
+axtrap = { path = "../axtrap" }
+axruntime = { path = "../../modules/axruntime" }
+axconfig = { path = "../../modules/axconfig" }
+axalloc = { path = "../../modules/axalloc", optional = true }
+axlog = { path = "../../modules/axlog" }
+
+[build-dependencies]
+axconfig = { path = "../../modules/axconfig" }
+
+[target.'cfg(any(target_arch = "riscv32", target_arch = "riscv64"))'.dependencies]
+riscv = "0.10"
+sbi-rt = { version = "0.0.2", features = ["legacy"] }

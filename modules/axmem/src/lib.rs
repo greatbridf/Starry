@@ -130,7 +130,7 @@ impl MemorySet {
             None => MapArea::new_lazy(vaddr, num_pages, flags, backend, &mut self.page_table),
         };
 
-        debug!(
+        info!(
             "allocating [0x{:x}, 0x{:x}) to [0x{:x}, 0x{:x}) flag: {:?}",
             usize::from(vaddr),
             usize::from(vaddr) + size,

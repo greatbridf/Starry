@@ -12,10 +12,12 @@ default = ["monolithic"]
 
 monolithic = ["linux_syscall_api/monolithic", "axfeat/monolithic", "paging", "fs", "multitask", "irq", "signal", "net"]
 
+alloc = ["axfeat/alloc", "arch_boot/alloc"]
+
 img = ["linux_syscall_api/img"]
 
 # Multicore
-smp = ["axfeat/smp"]
+smp = ["axfeat/smp", "arch_boot/smp"]
 
 # Floating point/SIMD
 fp_simd = ["axfeat/fp_simd"]
@@ -65,3 +67,5 @@ linux_syscall_api = { path = "../../api/linux_syscall_api" }
 axfeat = { path = "../../api/axfeat" }
 axlibc = { path = "../axlibc", optional = true }
 axlog = { path = "../../modules/axlog" }
+arch_boot = { path = "../../entry/arch_boot", features = ["monolithic"] }
+axruntime = { path = "../../modules/axruntime" }

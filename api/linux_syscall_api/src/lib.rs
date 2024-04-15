@@ -17,7 +17,9 @@ pub use syscall_fs::new_file;
 mod api;
 pub use api::*;
 
-mod trap;
+// These interfaces is exposed to the trap handler
+pub mod trap;
+
 extern crate alloc;
 /// 需要手动引入这个库，否则会报错：`#[panic_handler]` function required, but not found.
 extern crate axruntime;

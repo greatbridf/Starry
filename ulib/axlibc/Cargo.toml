@@ -23,7 +23,7 @@ crate-type = ["lib", "staticlib"]
 default = []
 
 # Multicore
-smp = ["arceos_posix_api/smp"]
+smp = ["arceos_posix_api/smp", "arch_boot/smp"]
 
 # Floating point/SIMD
 fp_simd = ["axfeat/fp_simd"]
@@ -52,6 +52,6 @@ axfeat = { path = "../../api/axfeat" }
 arceos_posix_api = { path = "../../api/arceos_posix_api" }
 axio = { path = "../../crates/axio" }
 axerrno = { path = "../../crates/axerrno" }
-
+arch_boot = { path = "../../entry/arch_boot" }
 [build-dependencies]
 bindgen ={ version = "0.66" }

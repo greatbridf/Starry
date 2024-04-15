@@ -2,6 +2,8 @@
 #![cfg_attr(all(not(test), not(doc)), no_std)]
 
 extern crate alloc;
+extern crate arch_boot;
+
 mod file;
 pub use file::fs_init;
 mod api;

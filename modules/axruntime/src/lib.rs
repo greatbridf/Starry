@@ -29,10 +29,7 @@ mod lang_items;
 mod trap;
 
 #[cfg(feature = "smp")]
-mod mp;
-
-#[cfg(feature = "smp")]
-pub use self::mp::rust_main_secondary;
+pub mod mp;
 
 const LOGO: &str = r#"
        d8888                            .d88888b.   .d8888b.
@@ -142,9 +139,6 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
         );
     }
 
-    #[cfg(feature = "alloc")]
-    init_allocator();
-
     #[cfg(feature = "paging")]
     {
         info!("Initialize kernel page table...");
@@ -178,9 +172,6 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
         axdisplay::init_display(all_devices.display);
     }
 
-    #[cfg(feature = "smp")]
-    self::mp::start_secondary_cpus(cpu_id);
-
     #[cfg(feature = "irq")]
     {
         info!("Initialize interrupt handlers...");
@@ -208,35 +199,6 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
     {
         debug!("main task exited: exit_code={}", 0);
         axhal::misc::terminate();
-    }
-}
-
-#[cfg(feature = "alloc")]
-fn init_allocator() {
-    use axhal::mem::{memory_regions, phys_to_virt, MemRegionFlags};
-
-    info!("Initialize global memory allocator...");
-    info!("  use {} allocator.", axalloc::global_allocator().name());
-
-    let mut max_region_size = 0;
-    let mut max_region_paddr = 0.into();
-    for r in memory_regions() {
-        if r.flags.contains(MemRegionFlags::FREE) && r.size > max_region_size {
-            max_region_size = r.size;
-            max_region_paddr = r.paddr;
-        }
-    }
-    for r in memory_regions() {
-        if r.flags.contains(MemRegionFlags::FREE) && r.paddr == max_region_paddr {
-            axalloc::global_init(phys_to_virt(r.paddr).as_usize(), r.size);
-            break;
-        }
-    }
-    for r in memory_regions() {
-        if r.flags.contains(MemRegionFlags::FREE) && r.paddr != max_region_paddr {
-            axalloc::global_add_memory(phys_to_virt(r.paddr).as_usize(), r.size)
-                .expect("add heap memory region failed");
-        }
     }
 }
 

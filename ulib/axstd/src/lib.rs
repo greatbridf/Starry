@@ -63,6 +63,8 @@ pub use core::{arch, cell, cmp, hint, marker, mem, ops, ptr, slice, str};
 #[macro_use]
 mod macros;
 
+extern crate arch_boot;
+
 pub mod env;
 pub mod io;
 pub mod os;

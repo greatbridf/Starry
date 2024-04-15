@@ -1,0 +1,21 @@
+[package]
+name = "axtrap"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[features]
+default = ["monolithic"]
+monolithic = ["dep:linux_syscall_api"]
+
+[dependencies]
+axlog = { path = "../../modules/axlog" }
+cfg-if = "1.0"
+linux_syscall_api = { path = "../../api/linux_syscall_api", optional = true }
+handler_table = { path = "../../crates/handler_table" }
+lazy_init = { path = "../../crates/lazy_init" }
+axhal = { path = "../../modules/axhal" }
+
+[target.'cfg(any(target_arch = "riscv32", target_arch = "riscv64"))'.dependencies]
+riscv = "0.10"

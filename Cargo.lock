@@ -215,6 +215,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "arch_boot"
+version = "0.1.0"
+dependencies = [
+ "axalloc",
+ "axconfig",
+ "axhal",
+ "axlog",
+ "axruntime",
+ "axtrap",
+ "cfg-if",
+ "linux_syscall_api",
+ "log",
+ "riscv",
+ "sbi-rt",
+]
+
+[[package]]
 name = "arm_gic"
 version = "0.1.0"
 dependencies = [
@@ -422,6 +439,7 @@ name = "axlibc"
 version = "0.1.0"
 dependencies = [
  "arceos_posix_api",
+ "arch_boot",
  "axerrno",
  "axfeat",
  "axio",
@@ -537,9 +555,11 @@ dependencies = [
 name = "axstarry"
 version = "0.1.0"
 dependencies = [
+ "arch_boot",
  "axfeat",
  "axlibc",
  "axlog",
+ "axruntime",
  "linux_syscall_api",
 ]
 
@@ -548,6 +568,7 @@ name = "axstd"
 version = "0.1.0"
 dependencies = [
  "arceos_api",
+ "arch_boot",
  "axerrno",
  "axfeat",
  "axio",
@@ -585,6 +606,19 @@ dependencies = [
  "scheduler",
  "spinlock",
  "timer_list",
+]
+
+[[package]]
+name = "axtrap"
+version = "0.1.0"
+dependencies = [
+ "axhal",
+ "axlog",
+ "cfg-if",
+ "handler_table",
+ "lazy_init",
+ "linux_syscall_api",
+ "riscv",
 ]
 
 [[package]]

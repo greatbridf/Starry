@@ -1,30 +1,6 @@
-use axconfig::{SMP, TASK_STACK_SIZE};
-use axhal::mem::{virt_to_phys, VirtAddr};
 use core::sync::atomic::{AtomicUsize, Ordering};
 
-#[link_section = ".bss.stack"]
-static mut SECONDARY_BOOT_STACK: [[u8; TASK_STACK_SIZE]; SMP - 1] = [[0; TASK_STACK_SIZE]; SMP - 1];
-
 static ENTERED_CPUS: AtomicUsize = AtomicUsize::new(1);
-
-pub fn start_secondary_cpus(primary_cpu_id: usize) {
-    let mut logic_cpu_id = 0;
-    for i in 0..SMP {
-        if i != primary_cpu_id {
-            let stack_top = virt_to_phys(VirtAddr::from(unsafe {
-                SECONDARY_BOOT_STACK[logic_cpu_id].as_ptr_range().end as usize
-            }));
-
-            debug!("starting CPU {}...", i);
-            axhal::mp::start_secondary_cpu(i, stack_top);
-            logic_cpu_id += 1;
-
-            while ENTERED_CPUS.load(Ordering::Acquire) <= logic_cpu_id {
-                core::hint::spin_loop();
-            }
-        }
-    }
-}
 
 /// The main entry point of the ArceOS runtime for secondary CPUs.
 ///
@@ -61,4 +37,8 @@ pub extern "C" fn rust_main_secondary(cpu_id: usize) -> ! {
     loop {
         axhal::arch::wait_for_irqs();
     }
+}
+
+pub fn entered_cpus_num() -> usize {
+    ENTERED_CPUS.load(Ordering::Acquire)
 }
