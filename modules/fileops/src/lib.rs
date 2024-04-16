@@ -12,14 +12,16 @@ use axfile::fops::File;
 use axfile::fops::OpenOptions;
 use axfile::api::create_dir;
 use mutex::Mutex;
+use axerrno::AxResult;
 
 // Special value used to indicate openat should use
 // the current working directory.
 pub const AT_FDCWD: usize = -100isize as usize;
+pub const AT_EMPTY_PATH: usize = 0x1000;
 
 const O_CREAT: usize = 0o100;
 
-pub fn openat(dfd: usize, filename: &str, flags: usize, mode: usize) -> usize {
+pub fn openat(dfd: usize, filename: &str, flags: usize, mode: usize) -> AxResult<File> {
     info!("openat '{}' at dfd {:#X} flags {:#X} mode {:#X}",
         filename, dfd, flags, mode);
 
@@ -36,15 +38,19 @@ pub fn openat(dfd: usize, filename: &str, flags: usize, mode: usize) -> usize {
 
     let path = handle_path(dfd, filename);
     info!("openat path {}", path);
-    let file = match File::open(&path, &opts, &fs) {
+    File::open(&path, &opts, &fs)
+}
+
+pub fn register_file(file: AxResult<File>) -> usize {
+    let file = match file {
         Ok(f) => f,
         Err(e) => {
-            error!("openat path {} failed.", path);
             return (-LinuxError::from(e).code()) as usize;
         },
     };
+    let current = task::current();
     let fd = current.filetable.lock().insert(Arc::new(Mutex::new(file)));
-    info!("openat {} return fd {}", path, fd);
+    info!("openat fd {}", fd);
     fd
 }
 
@@ -156,48 +162,45 @@ pub struct KernelStat {
     pub st_ctime_nsec: isize,
 }
 
-pub fn fstatat(dirfd: usize, _path: &str, statbuf_ptr: usize, _flags: usize) -> usize {
-    if dirfd == 1 {
-        // Todo: Handle stdin(0), stdout(1) and stderr(2)
-        let statbuf = statbuf_ptr as *mut KernelStat;
-        axhal::arch::enable_sum();
-        unsafe {
-            *statbuf = KernelStat {
-                st_mode: 0x2180,
-                st_nlink: 1,
-                st_blksize: 0x1000,
-                st_ino: 0x2a,
-                st_dev: 2,
-                st_rdev: 0x500001,
-                st_size: 0,
-                st_blocks: 0,
-                //st_uid: 1000,
-                //st_gid: 1000,
-                ..Default::default()
-            };
-        }
-        axhal::arch::disable_sum();
-        return 0;
+pub fn fstatat(dfd: usize, path: usize, statbuf_ptr: usize, flags: usize) -> usize {
+    let statbuf = statbuf_ptr as *mut KernelStat;
+
+    if dfd == 1 {
+        return fstatat_stdio(dfd, path, statbuf, flags);
     }
+    assert!(dfd > 2);
 
-    assert!(dirfd > 2);
-
-    let current = task::current();
-    let filetable = current.filetable.lock();
-    let file = match filetable.get_file(dirfd) {
-        Some(f) => f,
-        None => {
-            return (-2isize) as usize;
-        },
+    info!("fstatat dfd {:#x} flags {:#x}", dfd, flags);
+    let metadata = if (flags & AT_EMPTY_PATH) == 0 {
+        let path = get_user_str(path);
+        warn!("!!! NON-EMPTY for path: {}\n", path);
+        match openat(dfd, &path, flags, 0) {
+            Ok(file) => {
+                file.get_attr().unwrap()
+            },
+            Err(e) => {
+                return (-LinuxError::from(e).code()) as usize;
+            },
+        }
+    } else {
+        let current = task::current();
+        let filetable = current.filetable.lock();
+        let file = match filetable.get_file(dfd) {
+            Some(f) => f,
+            None => {
+                return (-2isize) as usize;
+            },
+        };
+        let locked_file = file.lock();
+        locked_file.get_attr().unwrap()
     };
-    let metadata = file.lock().get_attr().unwrap();
+
     let ty = metadata.file_type() as u8;
     let perm = metadata.perm().bits() as u32;
     let st_mode = ((ty as u32) << 12) | perm;
     let st_size = metadata.size();
     error!("st_size: {}", st_size);
 
-    let statbuf = statbuf_ptr as *mut KernelStat;
     axhal::arch::enable_sum();
     unsafe {
         *statbuf = KernelStat {
@@ -214,6 +217,28 @@ pub fn fstatat(dirfd: usize, _path: &str, statbuf_ptr: usize, _flags: usize) -> 
     }
     axhal::arch::disable_sum();
     0
+}
+
+fn fstatat_stdio(_dfd: usize, _path: usize, statbuf: *mut KernelStat, _flags: usize) -> usize {
+    // Todo: Handle stdin(0), stdout(1) and stderr(2)
+    axhal::arch::enable_sum();
+    unsafe {
+        *statbuf = KernelStat {
+            st_mode: 0x2180,
+            st_nlink: 1,
+            st_blksize: 0x1000,
+            st_ino: 0x2a,
+            st_dev: 2,
+            st_rdev: 0x500001,
+            st_size: 0,
+            st_blocks: 0,
+            //st_uid: 1000,
+            //st_gid: 1000,
+            ..Default::default()
+        };
+    }
+    axhal::arch::disable_sum();
+    return 0;
 }
 
 // IOCTL
@@ -302,4 +327,40 @@ pub fn chdir(path: &str) -> usize {
             (-LinuxError::from(e).code()) as usize
         },
     }
+}
+
+pub fn get_user_str(ptr: usize) -> String {
+    let ptr = ptr as *const u8;
+    axhal::arch::enable_sum();
+    let ptr = raw_ptr_to_ref_str(ptr);
+    let s = String::from(ptr);
+    axhal::arch::disable_sum();
+    s
+}
+
+/// # Safety
+///
+/// The caller must ensure that the pointer is valid and
+/// points to a valid C string.
+pub fn raw_ptr_to_ref_str(ptr: *const u8) -> &'static str {
+    let len = unsafe { get_str_len(ptr) };
+    let slice = unsafe { core::slice::from_raw_parts(ptr, len) };
+    if let Ok(s) = core::str::from_utf8(slice) {
+        s
+    } else {
+        panic!("not utf8 slice");
+    }
+}
+
+/// # Safety
+///
+/// The caller must ensure that the pointer is valid and
+/// points to a valid C string.
+/// The string must be null-terminated.
+pub unsafe fn get_str_len(ptr: *const u8) -> usize {
+    let mut cur = ptr as usize;
+    while *(cur as *const u8) != 0 {
+        cur += 1;
+    }
+    cur - ptr as usize
 }

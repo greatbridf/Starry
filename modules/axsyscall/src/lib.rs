@@ -1,19 +1,16 @@
 #![cfg_attr(not(test), no_std)]
 
 extern crate alloc;
-use alloc::string::String;
 
 use memory_addr::{align_up_4k, is_aligned_4k};
 use fileops::iovec;
+use fileops::get_user_str;
 
 #[macro_use]
 extern crate log;
 
 const MAX_SYSCALL_ARGS: usize = 6;
 pub type SyscallArgs = [usize; MAX_SYSCALL_ARGS];
-
-pub const AT_FDCWD: isize = -100;
-pub const AT_EMPTY_PATH: isize = 0x1000;
 
 pub fn do_syscall(args: SyscallArgs, sysno: usize) -> usize {
     match sysno {
@@ -164,43 +161,6 @@ const LINUX_SYSCALL_CLOCK_GETTIME:      usize = 0x71;
 const LINUX_SYSCALL_RT_SIGACTION:       usize = 0x86;
 const LINUX_SYSCALL_RT_SIGPROCMASK:     usize = 0x87;
 
-
-/// # Safety
-///
-/// The caller must ensure that the pointer is valid and
-/// points to a valid C string.
-/// The string must be null-terminated.
-pub unsafe fn get_str_len(ptr: *const u8) -> usize {
-    let mut cur = ptr as usize;
-    while *(cur as *const u8) != 0 {
-        cur += 1;
-    }
-    cur - ptr as usize
-}
-
-/// # Safety
-///
-/// The caller must ensure that the pointer is valid and
-/// points to a valid C string.
-pub fn raw_ptr_to_ref_str(ptr: *const u8) -> &'static str {
-    let len = unsafe { get_str_len(ptr) };
-    let slice = unsafe { core::slice::from_raw_parts(ptr, len) };
-    if let Ok(s) = core::str::from_utf8(slice) {
-        s
-    } else {
-        panic!("not utf8 slice");
-    }
-}
-
-pub fn get_user_str(ptr: usize) -> String {
-    let ptr = ptr as *const u8;
-    axhal::arch::enable_sum();
-    let ptr = raw_ptr_to_ref_str(ptr);
-    let s = String::from(ptr);
-    axhal::arch::disable_sum();
-    s
-}
-
 fn linux_syscall_faccessat(args: SyscallArgs) -> usize {
     let [dfd, filename, mode, ..] = args;
     info!("linux_syscall_faccessat dfd {:#X} filename {:#X} mode {}",
@@ -240,11 +200,11 @@ fn linux_syscall_unlinkat(args: SyscallArgs) -> usize {
 }
 
 fn linux_syscall_openat(args: SyscallArgs) -> usize {
-    let [dtd, filename, flags, mode, ..] = args;
+    let [dfd, filename, flags, mode, ..] = args;
 
     let filename = get_user_str(filename);
     info!("filename: {}\n", filename);
-    fileops::openat(dtd, &filename, flags, mode)
+    fileops::register_file(fileops::openat(dfd, &filename, flags, mode))
 }
 
 fn linux_syscall_close(_args: SyscallArgs) -> usize {
@@ -285,18 +245,8 @@ fn linux_syscall_writev(args: SyscallArgs) -> usize {
 }
 
 fn linux_syscall_fstatat(args: SyscallArgs) -> usize {
-    let [dirfd, pathname, statbuf, flags, ..] = args;
-
-    info!("###### fstatat!!! {:#x} {:#x} {:#x}", dirfd, statbuf, flags);
-    if (flags as isize & AT_EMPTY_PATH) == 0 {
-        // Todo: Handle this situation.
-        let pathname = get_user_str(pathname);
-        warn!("!!! implement NON-EMPTY for pathname: {}\n", pathname);
-        return 0;
-    }
-
-    // Todo: use real pathname to replace ""
-    fileops::fstatat(dirfd, "", statbuf, flags)
+    let [dfd, path, statbuf, flags, ..] = args;
+    fileops::fstatat(dfd, path, statbuf, flags)
 }
 
 fn linux_syscall_mmap(args: SyscallArgs) -> usize {
