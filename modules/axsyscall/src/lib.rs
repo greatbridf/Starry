@@ -255,11 +255,11 @@ fn linux_syscall_close(_args: SyscallArgs) -> usize {
 fn linux_syscall_read(args: SyscallArgs) -> usize {
     let [fd, buf, count, ..] = args;
 
-    let user_buf = unsafe {
+    let ubuf = unsafe {
         core::slice::from_raw_parts_mut(buf as *mut u8, count)
     };
 
-    fileops::read(fd, user_buf)
+    fileops::read(fd, ubuf)
 }
 
 fn linux_syscall_getdents64(args: SyscallArgs) -> usize {
@@ -272,8 +272,8 @@ fn linux_syscall_write(args: SyscallArgs) -> usize {
     let [fd, buf, size, ..] = args;
     info!("write: {:#x}, {:#x}, {:#x}", fd, buf, size);
 
-    let buf = unsafe { core::slice::from_raw_parts(buf as *const u8, size) };
-    fileops::write(buf)
+    let ubuf = unsafe { core::slice::from_raw_parts(buf as *const u8, size) };
+    fileops::write(fd, ubuf)
 }
 
 fn linux_syscall_writev(args: SyscallArgs) -> usize {
@@ -281,7 +281,7 @@ fn linux_syscall_writev(args: SyscallArgs) -> usize {
     info!("writev: {:#x}, {:#x}, {:#x}", fd, array, size);
 
     let iov_array = unsafe { core::slice::from_raw_parts(array as *const iovec, size) };
-    fileops::writev(iov_array)
+    fileops::writev(fd, iov_array)
 }
 
 fn linux_syscall_fstatat(args: SyscallArgs) -> usize {

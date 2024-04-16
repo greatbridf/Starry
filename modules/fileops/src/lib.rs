@@ -17,21 +17,47 @@ use mutex::Mutex;
 // the current working directory.
 pub const AT_FDCWD: usize = -100isize as usize;
 
-pub fn openat(_dtd: usize, filename: &str, _flags: usize, _mode: usize) -> usize {
+const O_CREAT: usize = 0o100;
+
+pub fn openat(dfd: usize, filename: &str, flags: usize, mode: usize) -> usize {
+    info!("openat '{}' at dfd {:#X} flags {:#X} mode {:#X}",
+        filename, dfd, flags, mode);
+
     let mut opts = OpenOptions::new();
     opts.read(true);
+    if (flags & O_CREAT) != 0 {
+        opts.write(true);
+        opts.create(true);
+        opts.truncate(true);
+    }
 
     let current = task::current();
     let fs = current.fs.lock();
-    let file = match File::open(&filename, &opts, &fs) {
+
+    let path = handle_path(dfd, filename);
+    info!("openat path {}", path);
+    let file = match File::open(&path, &opts, &fs) {
         Ok(f) => f,
         Err(e) => {
+            error!("openat path {} failed.", path);
             return (-LinuxError::from(e).code()) as usize;
         },
     };
     let fd = current.filetable.lock().insert(Arc::new(Mutex::new(file)));
-    error!("-------------- openat fd {}", fd);
+    info!("openat {} return fd {}", path, fd);
     fd
+}
+
+fn handle_path(dfd: usize, filename: &str) -> String {
+    if dfd == AT_FDCWD {
+        let cwd = _getcwd();
+        if cwd == "/" {
+            assert!(filename.starts_with("/"));
+        } else {
+            return cwd + filename;
+        }
+    }
+    String::from(filename)
 }
 
 pub fn read(fd: usize, ubuf: &mut [u8]) -> usize {
@@ -57,7 +83,30 @@ pub fn read(fd: usize, ubuf: &mut [u8]) -> usize {
     pos
 }
 
-pub fn write(ubuf: &[u8]) -> usize {
+pub fn write(fd: usize, ubuf: &[u8]) -> usize {
+    if fd == 1 || fd == 2 {
+        return write_to_stdio(ubuf);
+    }
+
+    let count = ubuf.len();
+    let current = task::current();
+    let file = current.filetable.lock().get_file(fd).unwrap();
+    let mut pos = 0;
+    assert!(count < 1024);
+    axhal::arch::enable_sum();
+    while pos < count {
+        let ret = file.lock().write(&ubuf[pos..]).unwrap();
+        if ret == 0 {
+            break;
+        }
+        pos += ret;
+    }
+    axhal::arch::disable_sum();
+    info!("write: fd {}, count {}, ret {}", fd, count, pos);
+    pos
+}
+
+fn write_to_stdio(ubuf: &[u8]) -> usize {
     axhal::arch::enable_sum();
     axhal::console::write_bytes(ubuf);
     axhal::arch::disable_sum();
@@ -71,7 +120,8 @@ pub struct iovec {
     iov_len: usize,
 }
 
-pub fn writev(iov_array: &[iovec]) -> usize {
+pub fn writev(fd: usize, iov_array: &[iovec]) -> usize {
+    assert!(fd == 1 || fd == 2);
     axhal::arch::enable_sum();
     for iov in iov_array {
         debug!("iov: {:#X} {:#X}", iov.iov_base, iov.iov_len);
@@ -226,28 +276,27 @@ pub fn mkdirat(dfd: usize, pathname: &str, mode: usize) -> usize {
 }
 
 pub fn getcwd(buf: &mut [u8]) -> usize {
-    let current = task::current();
-    let fs = current.fs.lock();
-    match fs.current_dir() {
-        Ok(dir) => {
-            let bytes = dir.as_bytes();
-            let count = bytes.len();
-            axhal::arch::enable_sum();
-            buf[0..count].copy_from_slice(bytes);
-            buf[count] = 0u8;
-            axhal::arch::disable_sum();
-            count + 1
-        },
-        Err(e) => {
-            (-LinuxError::from(e).code()) as usize
-        },
-    }
+    let cwd = _getcwd();
+    info!("getcwd {}", cwd);
+    let bytes = cwd.as_bytes();
+    let count = bytes.len();
+    axhal::arch::enable_sum();
+    buf[0..count].copy_from_slice(bytes);
+    buf[count] = 0u8;
+    axhal::arch::disable_sum();
+    count + 1
 }
 
-pub fn chdir(pathname: &str) -> usize {
+fn _getcwd() -> String {
+    let current = task::current();
+    let fs = current.fs.lock();
+    fs.current_dir().expect("bad cwd")
+}
+
+pub fn chdir(path: &str) -> usize {
     let current = task::current();
     let mut fs = current.fs.lock();
-    match fs.set_current_dir(pathname) {
+    match fs.set_current_dir(path) {
         Ok(()) => 0,
         Err(e) => {
             (-LinuxError::from(e).code()) as usize
