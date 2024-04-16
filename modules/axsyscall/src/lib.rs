@@ -20,6 +20,12 @@ pub fn do_syscall(args: SyscallArgs, sysno: usize) -> usize {
         LINUX_SYSCALL_IOCTL => {
             linux_syscall_ioctl(args)
         },
+        LINUX_SYSCALL_GETCWD => {
+            linux_syscall_getcwd(args)
+        },
+        LINUX_SYSCALL_CHDIR => {
+            linux_syscall_chdir(args)
+        },
         LINUX_SYSCALL_FACCESSAT => {
             linux_syscall_faccessat(args)
         },
@@ -32,6 +38,9 @@ pub fn do_syscall(args: SyscallArgs, sysno: usize) -> usize {
         LINUX_SYSCALL_MKDIRAT => {
             linux_syscall_mkdirat(args)
         },
+        LINUX_SYSCALL_UNLINKAT => {
+            linux_syscall_unlinkat(args)
+        },
         LINUX_SYSCALL_OPENAT => {
             linux_syscall_openat(args)
         },
@@ -40,6 +49,9 @@ pub fn do_syscall(args: SyscallArgs, sysno: usize) -> usize {
         },
         LINUX_SYSCALL_READ => {
             linux_syscall_read(args)
+        },
+        LINUX_SYSCALL_GETDENTS64 => {
+            linux_syscall_getdents64(args)
         },
         LINUX_SYSCALL_WRITE => {
             linux_syscall_write(args)
@@ -116,13 +128,17 @@ pub fn do_syscall(args: SyscallArgs, sysno: usize) -> usize {
 //
 // Linux syscall
 //
+const LINUX_SYSCALL_GETCWD:     usize = 0x11;
 const LINUX_SYSCALL_IOCTL:      usize = 0x1d;
 const LINUX_SYSCALL_MKDIRAT:    usize = 0x22;
+const LINUX_SYSCALL_UNLINKAT:   usize = 0x23;
 const LINUX_SYSCALL_FACCESSAT:  usize = 0x30;
+const LINUX_SYSCALL_CHDIR:      usize = 0x31;
 const LINUX_SYSCALL_CHMODAT:    usize = 0x35;
 const LINUX_SYSCALL_CHOWNAT:    usize = 0x36;
 const LINUX_SYSCALL_OPENAT:     usize = 0x38;
 const LINUX_SYSCALL_CLOSE:      usize = 0x39;
+const LINUX_SYSCALL_GETDENTS64: usize = 0x3d;
 const LINUX_SYSCALL_READ:       usize = 0x3f;
 const LINUX_SYSCALL_WRITE:      usize = 0x40;
 const LINUX_SYSCALL_WRITEV:     usize = 0x42;
@@ -216,6 +232,13 @@ fn linux_syscall_mkdirat(args: SyscallArgs) -> usize {
     fileops::mkdirat(dfd, &pathname, mode)
 }
 
+fn linux_syscall_unlinkat(args: SyscallArgs) -> usize {
+    let [dfd, path, flags, ..] = args;
+    let path = get_user_str(path);
+    warn!("impl unlinkat dfd {}, path {} flags {:#X}", dfd, path, flags);
+    0
+}
+
 fn linux_syscall_openat(args: SyscallArgs) -> usize {
     let [dtd, filename, flags, mode, ..] = args;
 
@@ -237,6 +260,12 @@ fn linux_syscall_read(args: SyscallArgs) -> usize {
     };
 
     fileops::read(fd, user_buf)
+}
+
+fn linux_syscall_getdents64(args: SyscallArgs) -> usize {
+    let [fd, _dirp, count, ..] = args;
+    warn!("impl linux_syscall_getdents64 fd {}, count {}", fd, count);
+    0
 }
 
 fn linux_syscall_write(args: SyscallArgs) -> usize {
@@ -281,6 +310,21 @@ fn linux_syscall_mmap(args: SyscallArgs) -> usize {
 fn linux_syscall_ioctl(args: SyscallArgs) -> usize {
     let [fd, request, udata, ..] = args;
     fileops::ioctl(fd, request, udata)
+}
+
+fn linux_syscall_getcwd(args: SyscallArgs) -> usize {
+    let [buf, size, ..] = args;
+
+    let ubuf = unsafe {
+        core::slice::from_raw_parts_mut(buf as *mut u8, size)
+    };
+    fileops::getcwd(ubuf)
+}
+
+fn linux_syscall_chdir(args: SyscallArgs) -> usize {
+    let [pathname, ..] = args;
+    let pathname = get_user_str(pathname);
+    fileops::chdir(&pathname)
 }
 
 fn linux_syscall_mprotect(_args: SyscallArgs) -> usize {

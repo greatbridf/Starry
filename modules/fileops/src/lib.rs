@@ -49,10 +49,11 @@ pub fn read(fd: usize, ubuf: &mut [u8]) -> usize {
         pos += ret;
     }
 
+    info!("linux_syscall_read: fd {}, count {}, ret {}", fd, count, pos);
+
     axhal::arch::enable_sum();
     ubuf.copy_from_slice(&kbuf[..count]);
     axhal::arch::disable_sum();
-    //error!("linux_syscall_read: fd {}, buf {:#X}, count {}, ret {}", fd, buf, count, pos);
     pos
 }
 
@@ -217,6 +218,36 @@ pub fn mkdirat(dfd: usize, pathname: &str, mode: usize) -> usize {
     let current = task::current();
     let fs = current.fs.lock();
     match create_dir(pathname, &fs) {
+        Ok(()) => 0,
+        Err(e) => {
+            (-LinuxError::from(e).code()) as usize
+        },
+    }
+}
+
+pub fn getcwd(buf: &mut [u8]) -> usize {
+    let current = task::current();
+    let fs = current.fs.lock();
+    match fs.current_dir() {
+        Ok(dir) => {
+            let bytes = dir.as_bytes();
+            let count = bytes.len();
+            axhal::arch::enable_sum();
+            buf[0..count].copy_from_slice(bytes);
+            buf[count] = 0u8;
+            axhal::arch::disable_sum();
+            count + 1
+        },
+        Err(e) => {
+            (-LinuxError::from(e).code()) as usize
+        },
+    }
+}
+
+pub fn chdir(pathname: &str) -> usize {
+    let current = task::current();
+    let mut fs = current.fs.lock();
+    match fs.set_current_dir(pathname) {
         Ok(()) => 0,
         Err(e) => {
             (-LinuxError::from(e).code()) as usize
