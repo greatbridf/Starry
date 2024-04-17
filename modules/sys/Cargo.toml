@@ -10,4 +10,3 @@ log = "0.4"
 taskctx = { path = "../taskctx" }
 axconfig = { path = "../axconfig" }
 axhal = { path = "../axhal" }
-axerrno = { path = "../../crates/axerrno" }

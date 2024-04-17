@@ -484,7 +484,6 @@ dependencies = [
  "lazy_init",
  "log",
  "mutex",
- "task",
 ]
 
 [[package]]
@@ -549,16 +548,11 @@ dependencies = [
 name = "axsyscall"
 version = "0.1.0"
 dependencies = [
- "axalloc",
- "axerrno",
- "axfile",
  "axhal",
  "fileops",
  "log",
  "memory_addr",
  "mmap",
- "scheduler",
- "spinlock",
  "sys",
  "task",
 ]
@@ -1104,7 +1098,6 @@ dependencies = [
  "memory_addr",
  "mmap",
  "mutex",
- "spinlock",
  "task",
 ]
 
@@ -1126,7 +1119,6 @@ dependencies = [
  "axhal",
  "log",
  "mutex",
- "spinlock",
  "task",
 ]
 
@@ -1159,13 +1151,9 @@ name = "fork"
 version = "0.1.0"
 dependencies = [
  "axerrno",
- "axhal",
  "bitflags 2.4.0",
- "kernel_guard",
  "log",
- "memory_addr",
  "run_queue",
- "spinlock",
  "task",
 ]
 
@@ -1437,7 +1425,6 @@ checksum = "68354c5c6bd36d73ff3feceb05efa59b6acb7626617f4962be322a825e61f79a"
 name = "mkboot"
 version = "0.1.0"
 dependencies = [
- "axalloc",
  "axconfig",
  "axdriver",
  "axdtb",
@@ -1452,7 +1439,6 @@ dependencies = [
  "exec",
  "fork",
  "kernel_guard",
- "mmap",
  "percpu",
  "run_queue",
  "task",
@@ -1462,12 +1448,9 @@ dependencies = [
 name = "mm"
 version = "0.1.0"
 dependencies = [
- "axalloc",
  "axfile",
  "axhal",
- "axio",
  "log",
- "memory_addr",
  "mutex",
  "spinlock",
 ]
@@ -1484,7 +1467,6 @@ dependencies = [
  "log",
  "memory_addr",
  "mm",
- "spinlock",
  "task",
 ]
 
@@ -1819,7 +1801,6 @@ dependencies = [
 name = "run_queue"
 version = "0.1.0"
 dependencies = [
- "cfg-if",
  "lazy_init",
  "log",
  "scheduler",
@@ -2046,7 +2027,6 @@ name = "sys"
 version = "0.1.0"
 dependencies = [
  "axconfig",
- "axerrno",
  "axhal",
  "log",
  "taskctx",
@@ -2060,7 +2040,6 @@ dependencies = [
  "filetable",
  "fstree",
  "log",
- "memory_addr",
  "mm",
  "spinlock",
  "taskctx",

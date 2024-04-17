@@ -14,5 +14,4 @@ mm = { path = "../mm" }
 axerrno = { path = "../../crates/axerrno" }
 axio = { path = "../../crates/axio" }
 memory_addr = { path = "../../crates/memory_addr" }
-spinlock = { path = "../../crates/spinlock" }
 axalloc = { path = "../axalloc" }
