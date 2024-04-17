@@ -478,12 +478,12 @@ dependencies = [
  "axfs_devfs",
  "axfs_ramfs",
  "axfs_vfs",
- "axsync",
  "cfg-if",
  "fatfs",
  "fstree",
  "lazy_init",
  "log",
+ "mutex",
  "task",
 ]
 
@@ -1480,6 +1480,7 @@ dependencies = [
  "axerrno",
  "axfile",
  "axhal",
+ "axio",
  "log",
  "memory_addr",
  "mm",

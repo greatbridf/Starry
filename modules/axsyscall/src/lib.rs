@@ -74,6 +74,9 @@ pub fn do_syscall(args: SyscallArgs, sysno: usize) -> usize {
         LINUX_SYSCALL_MMAP => {
             linux_syscall_mmap(args)
         },
+        LINUX_SYSCALL_MSYNC => {
+            linux_syscall_msync(args)
+        },
         LINUX_SYSCALL_MPROTECT => {
             linux_syscall_mprotect(args)
         },
@@ -117,7 +120,7 @@ pub fn do_syscall(args: SyscallArgs, sysno: usize) -> usize {
             linux_syscall_exit_group(args)
         },
         _ => {
-            panic!("Unsupport sysno: {}", sysno);
+            panic!("Unsupport sysno: {}, {:#X}", sysno, sysno);
         }
     }
 }
@@ -152,6 +155,7 @@ const LINUX_SYSCALL_BRK:        usize = 0xd6;
 const LINUX_SYSCALL_MUNMAP:     usize = 0xd7;
 const LINUX_SYSCALL_MMAP:       usize = 0xde;
 const LINUX_SYSCALL_MPROTECT:   usize = 0xe2;
+const LINUX_SYSCALL_MSYNC:      usize = 0xe3;
 const LINUX_SYSCALL_PRLIMIT64:  usize = 0x105;
 const LINUX_SYSCALL_GETRANDOM:  usize = 0x116;
 
@@ -255,6 +259,11 @@ fn linux_syscall_mmap(args: SyscallArgs) -> usize {
     debug!("###### mmap!!! {:#x} {:#x} {:#x} {:#x} {:#x} {:#x}", va, len, prot, flags, fd, offset);
 
     mmap::mmap(va, len, prot, flags, fd, offset).unwrap()
+}
+
+fn linux_syscall_msync(args: SyscallArgs) -> usize {
+    let [va, len, flags, ..] = args;
+    mmap::msync(va, len, flags)
 }
 
 fn linux_syscall_ioctl(args: SyscallArgs) -> usize {

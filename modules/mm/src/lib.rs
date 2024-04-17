@@ -1,7 +1,6 @@
 #![no_std]
 #![feature(btree_cursors)]
 
-#[macro_use]
 extern crate log;
 extern crate alloc;
 
@@ -10,14 +9,11 @@ use alloc::sync::Arc;
 use core::cell::OnceCell;
 use axfile::fops::File;
 use axhal::paging::pgd_alloc;
-use axhal::mem::phys_to_virt;
 use axhal::paging::MappingFlags;
 use axhal::paging::PageTable;
 use axhal::paging::PagingResult;
-use axio::SeekFrom;
 use core::sync::atomic::AtomicUsize;
 use core::sync::atomic::Ordering;
-use memory_addr::align_down_4k;
 use spinlock::SpinNoIrq;
 use mutex::Mutex;
 
@@ -99,25 +95,5 @@ impl MmStruct {
         self.pgd
             .lock()
             .map_region(va.into(), pa.into(), len, flags, true)
-    }
-
-    pub fn fill_cache(&self, pa: usize, len: usize, file: &mut File, offset: usize) {
-        let offset = align_down_4k(offset);
-        let va = phys_to_virt(pa.into()).as_usize();
-
-        let buf = unsafe { core::slice::from_raw_parts_mut(va as *mut u8, len) };
-
-        info!("offset {:#X} len {:#X}", offset, len);
-        let _ = file.seek(SeekFrom::Start(offset as u64));
-
-        let mut pos = 0;
-        while pos < len {
-            let ret = file.read(&mut buf[pos..]).unwrap();
-            if ret == 0 {
-                break;
-            }
-            pos += ret;
-        }
-        buf[pos..].fill(0);
     }
 }

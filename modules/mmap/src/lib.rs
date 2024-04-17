@@ -11,6 +11,8 @@ use memory_addr::align_up_4k;
 use core::ops::Bound;
 use axhal::mem::{phys_to_virt, virt_to_phys};
 use axhal::arch::TASK_UNMAPPED_BASE;
+use axio::SeekFrom;
+use axfile::fops::File;
 pub use mm::FileRef;
 
 /// Interpret addr exactly.
@@ -151,10 +153,30 @@ pub fn faultin_page(va: usize) -> usize {
 
     if vma.vm_file.get().is_some() {
         let f = vma.vm_file.get().unwrap().clone();
-        locked_mm.fill_cache(pa, PAGE_SIZE_4K, &mut f.lock(), offset);
+        fill_cache(pa, PAGE_SIZE_4K, &mut f.lock(), offset);
     }
     let _ = locked_mm.map_region(va, pa, PAGE_SIZE_4K, 1);
     phys_to_virt(pa.into()).into()
+}
+
+fn fill_cache(pa: usize, len: usize, file: &mut File, offset: usize) {
+    let offset = align_down_4k(offset);
+    let va = phys_to_virt(pa.into()).as_usize();
+
+    let buf = unsafe { core::slice::from_raw_parts_mut(va as *mut u8, len) };
+
+    info!("offset {:#X} len {:#X}", offset, len);
+    let _ = file.seek(SeekFrom::Start(offset as u64));
+
+    let mut pos = 0;
+    while pos < len {
+        let ret = file.read(&mut buf[pos..]).unwrap();
+        if ret == 0 {
+            break;
+        }
+        pos += ret;
+    }
+    buf[pos..].fill(0);
 }
 
 pub fn set_brk(va: usize) -> usize {
@@ -177,4 +199,50 @@ pub fn set_brk(va: usize) -> usize {
         mm.lock().set_brk(va);
         va
     }
+}
+
+pub fn msync(va: usize, len: usize, flags: usize) -> usize {
+    info!("msync: va {:#X} len {:#X} flags {:#X}", va, len, flags);
+
+    let mm = task::current().mm();
+    let locked_mm = mm.lock();
+
+    let vma = locked_mm.vmas.upper_bound(Bound::Included(&va)).value().unwrap();
+    assert!(
+        va >= vma.vm_start && va + len <= vma.vm_end,
+        "va {:#X} in {:#X} - {:#X}",
+        va,
+        vma.vm_start,
+        vma.vm_end
+    );
+    info!("msync: {:#X} - {:#X}", va, va+len);
+
+    let delta = va - vma.vm_start;
+    let offset = (vma.vm_pgoff << PAGE_SHIFT) + delta;
+
+    if vma.vm_file.get().is_some() {
+        let file = vma.vm_file.get().unwrap().clone();
+        sync_file(va, len, &mut file.lock(), offset);
+    }
+    0
+}
+
+fn sync_file(va: usize, len: usize, file: &mut File, offset: usize) {
+    let buf = unsafe {
+        core::slice::from_raw_parts(va as *const u8, len)
+    };
+
+    let _ = file.seek(SeekFrom::Start(offset as u64));
+
+    let mut pos = 0;
+    while pos < len {
+        axhal::arch::enable_sum();
+        let ret = file.write(&buf[pos..]).unwrap();
+        axhal::arch::disable_sum();
+        if ret == 0 {
+            break;
+        }
+        pos += ret;
+    }
+    info!("msync: ok!");
 }
