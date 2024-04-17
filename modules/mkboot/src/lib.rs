@@ -221,7 +221,7 @@ fn init_interrupt() {
     const PERIODIC_INTERVAL_NANOS: u64 =
         axhal::time::NANOS_PER_SEC / axconfig::TICKS_PER_SEC as u64;
 
-    #[percpu::def_percpu]
+    #[percpu2::def_percpu]
     static NEXT_DEADLINE: u64 = 0;
 
     fn update_timer() {

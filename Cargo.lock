@@ -1445,7 +1445,7 @@ dependencies = [
  "crate_interface",
  "exec",
  "fork",
- "percpu",
+ "percpu2",
  "preempt_guard",
  "run_queue",
  "task",
