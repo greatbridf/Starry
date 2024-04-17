@@ -54,7 +54,6 @@ impl AxRunQueue {
         if self.scheduler.task_tick(
             &Arc::new(SchedItem::new(curr.as_task_ref().clone()))
         ) {
-            #[cfg(feature = "preempt")]
             curr.set_preempt_pending(true);
         }
     }
@@ -72,7 +71,6 @@ impl AxRunQueue {
             .set_priority(crate::current().as_task_ref(), prio)
     }
 
-    #[cfg(feature = "preempt")]
     pub fn preempt_resched(&mut self) {
         let curr = crate::current();
         assert!(curr.is_running());
@@ -126,7 +124,6 @@ impl AxRunQueue {
         assert!(!curr.is_idle());
 
         // we must not block current task with preemption disabled.
-        #[cfg(feature = "preempt")]
         assert!(curr.can_preempt(1));
 
         curr.set_state(TaskState::Blocked);
@@ -141,8 +138,7 @@ impl AxRunQueue {
             //task.set_state(TaskState::Ready);
             self.scheduler.add_task(Arc::new(SchedItem::new(task))); // TODO: priority
             if resched {
-                #[cfg(feature = "preempt")]
-                crate::current().set_preempt_pending(true);
+                taskctx::current_ctx().set_preempt_pending(true);
             }
         }
     }
@@ -181,7 +177,6 @@ impl AxRunQueue {
             prev_task.pid(),
             next_task.pid()
         );
-        #[cfg(feature = "preempt")]
         next_task.set_preempt_pending(false);
         //next_task.set_state(TaskState::Running);
         if prev_task.ptr_eq(&next_task) {

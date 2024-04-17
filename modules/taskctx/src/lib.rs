@@ -82,6 +82,9 @@ pub struct SchedInfo {
     state: AtomicU8,
     in_wait_queue: AtomicBool,
 
+    need_resched: AtomicBool,
+    preempt_disable_count: AtomicUsize,
+
     /* CPU-specific state of this task: */
     pub thread: UnsafeCell<ThreadStruct>,
 }
@@ -103,6 +106,8 @@ impl SchedInfo {
             kstack: None,
             state: AtomicU8::new(TaskState::Ready as u8),
             in_wait_queue: AtomicBool::new(false),
+            need_resched: AtomicBool::new(false),
+            preempt_disable_count: AtomicUsize::new(0),
 
             thread: UnsafeCell::new(ThreadStruct::new()),
         }
@@ -159,6 +164,10 @@ impl SchedInfo {
         self.kstack = Some(TaskStack::alloc(align_up_4k(THREAD_SIZE)));
         let sp = self.pt_regs();
         self.thread.get_mut().init(entry_func, sp.into(), tls);
+    }
+
+    pub fn set_preempt_pending(&self, pending: bool) {
+        self.need_resched.store(pending, Ordering::Release)
     }
 }
 
