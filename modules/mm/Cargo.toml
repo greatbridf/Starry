@@ -10,4 +10,4 @@ log = "0.4"
 axhal = { path = "../axhal" }
 axfile = { path = "../axfile" }
 mutex = { path = "../mutex" }
-spinlock = { path = "../../crates/spinlock" }
+spinbase = { path = "../../crates/spinbase" }

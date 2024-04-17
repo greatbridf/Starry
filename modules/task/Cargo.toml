@@ -12,4 +12,5 @@ mm = { path = "../mm" }
 fstree = { path = "../fstree" }
 taskctx = { path = "../taskctx" }
 filetable = { path = "../filetable" }
-spinlock = { path = "../../crates/spinlock" }
+spinbase = { path = "../../crates/spinbase" }
+spinpreempt = { path = "../../crates/spinpreempt" }

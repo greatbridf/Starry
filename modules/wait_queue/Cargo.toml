@@ -8,4 +8,4 @@ edition = "2021"
 [dependencies]
 taskctx = { path = "../taskctx" }
 run_queue = { path = "../run_queue" }
-spinlock = { path = "../../crates/spinlock" }
+spinbase = { path = "../../crates/spinbase" }

@@ -23,7 +23,7 @@ unikernel = ["arceos_api/unikernel", "axfeat/unikernel"]
 monolithic = ["arceos_api/monolithic", "axfeat/monolithic"]
 
 # Multicore
-smp = ["axfeat/smp", "spinlock/smp"]
+smp = ["axfeat/smp", "spinbase/smp"]
 
 # Floating point/SIMD
 fp_simd = ["axfeat/fp_simd"]
@@ -76,4 +76,4 @@ axfeat = { path = "../../api/axfeat" }
 arceos_api = { path = "../../api/arceos_api" }
 axio = { path = "../../crates/axio" }
 axerrno = { path = "../../crates/axerrno" }
-spinlock = { path = "../../crates/spinlock" }
+spinbase = { path = "../../crates/spinbase" }

@@ -14,6 +14,6 @@ preempt = []
 [dependencies]
 log = "0.4"
 taskctx = { path = "../taskctx" }
-spinlock = { path = "../../crates/spinlock" }
+spinbase = { path = "../../crates/spinbase" }
 lazy_init = { path = "../../crates/lazy_init" }
 scheduler = { path = "../../crates/scheduler" }

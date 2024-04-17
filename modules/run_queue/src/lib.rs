@@ -2,7 +2,7 @@
 
 use taskctx::CtxRef;
 use crate::run_queue::RUN_QUEUE;
-use spinlock::SpinNoIrq;
+use spinbase::SpinNoIrq;
 
 #[macro_use]
 extern crate log;

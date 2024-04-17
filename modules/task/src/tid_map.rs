@@ -1,9 +1,9 @@
 use alloc::collections::BTreeMap;
-use spinlock::SpinNoIrq;
+use spinpreempt::SpinLock;
 use crate::TaskRef;
 use crate::Pid;
 
-static TID_MAP: SpinNoIrq<BTreeMap<Pid, TaskRef>> = SpinNoIrq::new(BTreeMap::new());
+static TID_MAP: SpinLock<BTreeMap<Pid, TaskRef>> = SpinLock::new(BTreeMap::new());
 
 pub fn get_task(pid: Pid) -> Option<TaskRef> {
     TID_MAP.lock().get(&pid).cloned()

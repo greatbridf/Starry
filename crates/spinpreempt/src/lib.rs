@@ -12,7 +12,7 @@
 
 mod base;
 
-use kernel_guard::NoPreemptIrqSave;
+use preempt_guard::NoPreemptIrqSave;
 
 pub use self::base::{BaseSpinLock, BaseSpinLockGuard};
 
@@ -20,7 +20,7 @@ pub use self::base::{BaseSpinLock, BaseSpinLockGuard};
 /// lock, and re-enables it after unlocking.
 ///
 /// It can be used in the IRQ-enabled context.
-pub type SpinNoIrq<T> = BaseSpinLock<NoPreemptIrqSave, T>;
+pub type SpinLock<T> = BaseSpinLock<NoPreemptIrqSave, T>;
 
 /// A guard that provides mutable data access for [`SpinNoIrq`].
-pub type SpinNoIrqGuard<'a, T> = BaseSpinLockGuard<'a, NoPreemptIrqSave, T>;
+pub type SpinLockGuard<'a, T> = BaseSpinLockGuard<'a, NoPreemptIrqSave, T>;

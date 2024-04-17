@@ -15,11 +15,13 @@ use alloc::sync::Arc;
 use axhal::arch::TaskContext as ThreadStruct;
 use mm::MmStruct;
 use taskctx::switch_mm;
-use spinlock::SpinNoIrq;
+use taskctx::SchedInfo;
+use taskctx::TaskState;
+use spinbase::SpinNoIrq;
+use spinpreempt::SpinLock;
 use fstree::FsStruct;
 use filetable::FileTable;
 use crate::tid_map::{register_task, get_task};
-use taskctx::SchedInfo;
 pub use taskctx::Pid;
 pub use taskctx::current_ctx;
 pub use taskctx::{TaskStack, THREAD_SIZE};
@@ -30,8 +32,8 @@ static NEXT_PID: AtomicUsize = AtomicUsize::new(0);
 
 pub struct TaskStruct {
     mm: Option<Arc<SpinNoIrq<MmStruct>>>,
-    pub fs: Arc<SpinNoIrq<FsStruct>>,
-    pub filetable: Arc<SpinNoIrq<FileTable>>,
+    pub fs: Arc<SpinLock<FsStruct>>,
+    pub filetable: Arc<SpinLock<FileTable>>,
 
     pub sched_info: Arc<SchedInfo>,
 }
@@ -45,8 +47,8 @@ impl TaskStruct {
         warn!("\n++++++++++++++++++++++++++++++++++++++ TaskStruct::new pid {}\n", pid);
         let arc = Arc::new(Self {
             mm: None,
-            fs: Arc::new(SpinNoIrq::new(FsStruct::new())),
-            filetable: Arc::new(SpinNoIrq::new(FileTable::new())),
+            fs: Arc::new(SpinLock::new(FsStruct::new())),
+            filetable: Arc::new(SpinLock::new(FileTable::new())),
 
             sched_info: Arc::new(SchedInfo::new(pid)),
         });
@@ -93,7 +95,7 @@ impl TaskStruct {
         let task = Arc::new(Self {
             mm: None,
             fs: self.fs.clone(),
-            filetable: Arc::new(SpinNoIrq::new(FileTable::new())),
+            filetable: Arc::new(SpinLock::new(FileTable::new())),
 
             sched_info: self.sched_info.dup_sched_info(pid),
         });
@@ -105,6 +107,11 @@ impl TaskStruct {
     #[inline]
     pub const unsafe fn ctx_mut_ptr(&self) -> *mut ThreadStruct {
         self.sched_info.ctx_mut_ptr()
+    }
+
+    #[inline]
+    pub fn set_state(&self, state: TaskState) {
+        self.sched_info.set_state(state)
     }
 }
 
@@ -199,6 +206,6 @@ pub fn exit(exit_code: i32) -> ! {
 pub fn init() {
     error!("task::init ...");
     let init_task = TaskStruct::new();
-    //init_task.set_state(TaskState::Running);
+    init_task.set_state(TaskState::Running);
     unsafe { CurrentTask::init_current(init_task) }
 }

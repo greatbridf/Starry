@@ -92,6 +92,10 @@ members = [
 
     "crates/axtype",
     "crates/axdtb",
+    "crates/kernel_guard_base",
+    "crates/spinbase",
+    "crates/preempt_guard",
+    "crates/spinpreempt",
 ]
 
 [profile.release]

@@ -531,7 +531,7 @@ dependencies = [
  "axerrno",
  "axfeat",
  "axio",
- "spinlock",
+ "spinbase",
 ]
 
 [[package]]
@@ -1164,7 +1164,7 @@ dependencies = [
  "axerrno",
  "axfs_vfs",
  "log",
- "spinlock",
+ "spinpreempt",
 ]
 
 [[package]]
@@ -1317,6 +1317,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "kernel_guard_base"
+version = "0.1.0"
+dependencies = [
+ "cfg-if",
+]
+
+[[package]]
 name = "lazy_init"
 version = "0.1.0"
 
@@ -1452,7 +1459,7 @@ dependencies = [
  "axhal",
  "log",
  "mutex",
- "spinlock",
+ "spinbase",
 ]
 
 [[package]]
@@ -1618,6 +1625,16 @@ name = "ppv-lite86"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5b40af805b3121feab8a3c29f04d8ad262fa8e0561883e7653e024ae4479e6de"
+
+[[package]]
+name = "preempt_guard"
+version = "0.1.0"
+dependencies = [
+ "cfg-if",
+ "kernel_guard_base",
+ "run_queue",
+ "taskctx",
+]
 
 [[package]]
 name = "prettyplease"
@@ -1804,7 +1821,7 @@ dependencies = [
  "lazy_init",
  "log",
  "scheduler",
- "spinlock",
+ "spinbase",
  "taskctx",
 ]
 
@@ -1968,11 +1985,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "spinbase"
+version = "0.1.0"
+dependencies = [
+ "cfg-if",
+ "kernel_guard_base",
+]
+
+[[package]]
 name = "spinlock"
 version = "0.1.0"
 dependencies = [
  "cfg-if",
  "kernel_guard",
+]
+
+[[package]]
+name = "spinpreempt"
+version = "0.1.0"
+dependencies = [
+ "cfg-if",
+ "preempt_guard",
 ]
 
 [[package]]
@@ -2041,7 +2074,8 @@ dependencies = [
  "fstree",
  "log",
  "mm",
- "spinlock",
+ "spinbase",
+ "spinpreempt",
  "taskctx",
 ]
 
@@ -2052,7 +2086,7 @@ dependencies = [
  "axhal",
  "log",
  "memory_addr",
- "spinlock",
+ "spinbase",
 ]
 
 [[package]]
@@ -2189,7 +2223,7 @@ name = "wait_queue"
 version = "0.1.0"
 dependencies = [
  "run_queue",
- "spinlock",
+ "spinbase",
  "taskctx",
 ]
 

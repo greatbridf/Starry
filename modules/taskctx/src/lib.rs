@@ -13,7 +13,7 @@ use axhal::arch::TaskContext as ThreadStruct;
 use axhal::mem::VirtAddr;
 use axhal::trap::{TRAPFRAME_SIZE, STACK_ALIGN};
 use memory_addr::{align_up_4k, align_down, PAGE_SIZE_4K};
-use spinlock::SpinNoIrq;
+use spinbase::SpinNoIrq;
 use axhal::arch::write_page_table_root0;
 use axhal::paging::PageTable;
 
@@ -49,7 +49,7 @@ impl Drop for TaskStack {
 /// The possible states of a task.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub(crate) enum TaskState {
+pub enum TaskState {
     Running = 1,
     Ready = 2,
     Blocked = 3,
@@ -127,6 +127,16 @@ impl SchedInfo {
     }
 
     #[inline]
+    pub fn set_state(&self, state: TaskState) {
+        self.state.store(state as u8, Ordering::Release)
+    }
+
+    #[inline]
+    pub fn is_running(&self) -> bool {
+        matches!(self.state(), TaskState::Running)
+    }
+
+    #[inline]
     pub fn is_blocked(&self) -> bool {
         matches!(self.state(), TaskState::Blocked)
     }
@@ -166,8 +176,29 @@ impl SchedInfo {
         self.thread.get_mut().init(entry_func, sp.into(), tls);
     }
 
+    #[inline]
     pub fn set_preempt_pending(&self, pending: bool) {
         self.need_resched.store(pending, Ordering::Release)
+    }
+
+    #[inline]
+    pub fn get_preempt_pending(&self) -> bool {
+        self.need_resched.load(Ordering::Acquire)
+    }
+
+    #[inline]
+    pub fn can_preempt(&self, current_disable_count: usize) -> bool {
+        self.preempt_disable_count.load(Ordering::Acquire) == current_disable_count
+    }
+
+    #[inline]
+    pub fn disable_preempt(&self) {
+        self.preempt_disable_count.fetch_add(1, Ordering::Relaxed);
+    }
+
+    #[inline]
+    pub fn enable_preempt(&self) -> bool {
+        self.preempt_disable_count.fetch_sub(1, Ordering::Relaxed) == 1
     }
 }
 
@@ -178,7 +209,7 @@ pub type CtxRef = Arc<SchedInfo>;
 pub struct CurrentCtx(ManuallyDrop<CtxRef>);
 
 impl CurrentCtx {
-    pub(crate) fn try_get() -> Option<Self> {
+    pub fn try_get() -> Option<Self> {
         let ptr: *const SchedInfo = axhal::cpu::current_task_ptr();
         if !ptr.is_null() {
             Some(Self(unsafe { ManuallyDrop::new(CtxRef::from_raw(ptr)) }))

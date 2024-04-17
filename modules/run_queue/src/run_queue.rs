@@ -2,13 +2,13 @@ use lazy_init::LazyInit;
 use scheduler::BaseScheduler;
 use alloc::sync::Arc;
 use taskctx::switch_mm;
-//use task::{CurrentTask, TaskState};
+use taskctx::TaskState;
 /*
 use alloc::collections::VecDeque;
 
 use crate::{AxTaskRef, Scheduler, TaskInner, WaitQueue};
 */
-use spinlock::SpinNoIrq;
+use spinbase::SpinNoIrq;
 use taskctx::{CtxRef, CurrentCtx};
 use core::sync::atomic::Ordering;
 
@@ -70,9 +70,10 @@ impl AxRunQueue {
         self.scheduler
             .set_priority(crate::current().as_task_ref(), prio)
     }
+    */
 
     pub fn preempt_resched(&mut self) {
-        let curr = crate::current();
+        let curr = taskctx::current_ctx();
         assert!(curr.is_running());
 
         // When we get the mutable reference of the run queue, we must
@@ -84,7 +85,7 @@ impl AxRunQueue {
 
         debug!(
             "current task is to be preempted: {}, allow={}",
-            curr.id_name(),
+            curr.pid(),
             can_preempt
         );
         if can_preempt {
@@ -94,6 +95,7 @@ impl AxRunQueue {
         }
     }
 
+    /*
     pub fn exit_current(&mut self, exit_code: i32) -> ! {
         let curr = crate::current();
         debug!("task exit: {}, exit_code={}", curr.id_name(), exit_code);
@@ -178,7 +180,7 @@ impl AxRunQueue {
             next_task.pid()
         );
         next_task.set_preempt_pending(false);
-        //next_task.set_state(TaskState::Running);
+        next_task.set_state(TaskState::Running);
         if prev_task.ptr_eq(&next_task) {
             return;
         }

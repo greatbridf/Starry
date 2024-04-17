@@ -1,0 +1,21 @@
+[package]
+name = "preempt_guard"
+version = "0.1.0"
+edition = "2021"
+authors = ["Yuekai Jia <equation618@gmail.com>"]
+description = "RAII wrappers to create a critical section with local IRQs or preemption disabled"
+license = "GPL-3.0-or-later OR Apache-2.0"
+homepage = "https://github.com/rcore-os/arceos"
+repository = "https://github.com/rcore-os/arceos/tree/main/crates/preempt_guard"
+documentation = "https://rcore-os.github.io/arceos/preempt_guard/index.html"
+keywords = ["arceos", "synchronization", "preemption"]
+categories = ["os", "no-std"]
+
+[features]
+default = []
+
+[dependencies]
+cfg-if = "1.0"
+kernel_guard_base = { path = "../kernel_guard_base" }
+taskctx = { path = "../../modules/taskctx" }
+run_queue = { path = "../../modules/run_queue" }

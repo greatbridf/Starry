@@ -14,7 +14,7 @@ use axhal::paging::PageTable;
 use axhal::paging::PagingResult;
 use core::sync::atomic::AtomicUsize;
 use core::sync::atomic::Ordering;
-use spinlock::SpinNoIrq;
+use spinbase::SpinNoIrq;
 use mutex::Mutex;
 
 pub type FileRef = Arc<Mutex<File>>;
