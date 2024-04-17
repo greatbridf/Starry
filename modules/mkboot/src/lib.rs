@@ -16,6 +16,7 @@ use core::sync::atomic::{AtomicUsize, Ordering};
 use fork::{user_mode_thread, CloneFlags};
 use axtype::DtbInfo;
 use axhal::mem::{phys_to_virt, memory_regions};
+use preempt_guard::NoPreempt;
 
 #[cfg(feature = "smp")]
 mod mp;
@@ -188,7 +189,7 @@ fn remap_kernel_memory() -> Result<(), axhal::paging::PagingError> {
     use axhal::paging::PageTable;
     use axhal::paging::{reuse_page_table_root, setup_page_table_root};
 
-    if axhal::cpu::this_cpu_is_bsp() {
+    if this_cpu_is_bsp() {
         let mut kernel_page_table = PageTable::try_new()?;
         for r in memory_regions() {
             kernel_page_table.map_region(
@@ -205,6 +206,12 @@ fn remap_kernel_memory() -> Result<(), axhal::paging::PagingError> {
     }
 
     Ok(())
+}
+
+// Todo: Consider to move it to standalone component 'cpu'
+fn this_cpu_is_bsp() -> bool {
+    let _ = NoPreempt::new();
+    axhal::cpu::_this_cpu_is_bsp()
 }
 
 fn init_interrupt() {

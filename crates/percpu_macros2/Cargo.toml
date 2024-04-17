@@ -1,0 +1,24 @@
+[package]
+name = "percpu_macros2"
+version = "0.1.0"
+edition = "2021"
+authors = ["Yuekai Jia <equation618@gmail.com>"]
+description = "Macros to define and access a per-CPU data structure"
+license = "GPL-3.0-or-later OR Apache-2.0"
+homepage = "https://github.com/rcore-os/arceos"
+repository = "https://github.com/rcore-os/arceos/tree/main/crates/percpu_macros2"
+documentation = "https://rcore-os.github.io/arceos/percpu_macros2/index.html"
+
+[features]
+# For single CPU use, just make the per-CPU data a global variable.
+sp-naive = []
+
+default = []
+
+[dependencies]
+proc-macro2 = "1.0"
+quote = "1.0"
+syn = { version = "2.0", features = ["full"] }
+
+[lib]
+proc-macro = true

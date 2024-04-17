@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-default = ["axhal/irq", "percpu", "kernel_guard"]
+default = ["axhal/irq", "percpu", "preempt_guard"]
 
 [dependencies]
 axhal = { path = "../axhal" }
@@ -25,4 +25,4 @@ exec = { path = "../exec" }
 axerrno = { path = "../../crates/axerrno" }
 axtype = { path = "../../crates/axtype" }
 axdtb = { path = "../../crates/axdtb" }
-kernel_guard = { path = "../../crates/kernel_guard", optional = true }
+preempt_guard = { path = "../../crates/preempt_guard", optional = true }

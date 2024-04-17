@@ -1,25 +1,29 @@
 //! CPU-related operations.
 
-#[percpu::def_percpu]
+#[percpu2::def_percpu]
 static CPU_ID: usize = 0;
 
-#[percpu::def_percpu]
+#[percpu2::def_percpu]
 static IS_BSP: bool = false;
 
-#[percpu::def_percpu]
+#[percpu2::def_percpu]
 static CURRENT_TASK_PTR: usize = 0;
 
+/// Safety: Makesure that it will be called under No-Preemption.
+///
 /// Returns the ID of the current CPU.
 #[inline]
-pub fn this_cpu_id() -> usize {
-    CPU_ID.read_current()
+pub fn _this_cpu_id() -> usize {
+    unsafe { CPU_ID.read_current_raw() }
 }
 
+/// Safety: Makesure that it will be called under No-Preemption.
+///
 /// Returns whether the current CPU is the primary CPU (aka the bootstrap
 /// processor or BSP)
 #[inline]
-pub fn this_cpu_is_bsp() -> bool {
-    IS_BSP.read_current()
+pub fn _this_cpu_is_bsp() -> bool {
+    unsafe { IS_BSP.read_current_raw() }
 }
 
 /// Gets the pointer to the current task with preemption-safety.
@@ -76,8 +80,8 @@ pub unsafe fn set_current_task_ptr<T>(ptr: *const T) {
 #[allow(dead_code)]
 /// Initializes the primary CPU.
 pub fn init_primary(cpu_id: usize) {
-    percpu::init(axconfig::SMP);
-    percpu::set_local_thread_pointer(cpu_id);
+    percpu2::init(axconfig::SMP);
+    percpu2::set_local_thread_pointer(cpu_id);
     unsafe {
         CPU_ID.write_current_raw(cpu_id);
         IS_BSP.write_current_raw(true);
@@ -87,7 +91,7 @@ pub fn init_primary(cpu_id: usize) {
 #[allow(dead_code)]
 /// Initializes a secondary CPU.
 pub fn init_secondary(cpu_id: usize) {
-    percpu::set_local_thread_pointer(cpu_id);
+    percpu2::set_local_thread_pointer(cpu_id);
     unsafe {
         CPU_ID.write_current_raw(cpu_id);
         IS_BSP.write_current_raw(false);

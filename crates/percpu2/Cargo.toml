@@ -1,0 +1,26 @@
+[package]
+name = "percpu2"
+version = "0.1.0"
+edition = "2021"
+authors = ["Yuekai Jia <equation618@gmail.com>"]
+description = "Define and access per-CPU data structures"
+license = "GPL-3.0-or-later OR Apache-2.0"
+homepage = "https://github.com/rcore-os/arceos"
+repository = "https://github.com/rcore-os/arceos/tree/main/crates/percpu2"
+documentation = "https://rcore-os.github.io/arceos/percpu2/index.html"
+
+[features]
+# For single CPU use, just make the per-CPU data a global variable.
+sp-naive = ["percpu_macros2/sp-naive"]
+
+default = []
+
+[dependencies]
+cfg-if = "1.0"
+percpu_macros2 = { path = "../percpu_macros2" }
+
+[target.'cfg(target_arch = "x86_64")'.dependencies]
+x86 = "0.52"
+
+[target.'cfg(not(target_os = "none"))'.dependencies]
+spin = "0.9"

@@ -96,6 +96,8 @@ members = [
     "crates/spinbase",
     "crates/preempt_guard",
     "crates/spinpreempt",
+    "crates/percpu2",
+    "crates/percpu_macros2",
 ]
 
 [profile.release]
