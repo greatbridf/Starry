@@ -98,6 +98,8 @@ members = [
     "crates/spinpreempt",
     "crates/percpu2",
     "crates/percpu_macros2",
+    "crates/early_console",
+    "modules/axlog2",
 ]
 
 [profile.release]

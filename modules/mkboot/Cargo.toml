@@ -12,13 +12,13 @@ default = ["axhal/irq", "percpu2", "preempt_guard"]
 axhal = { path = "../axhal" }
 axtrap = { path = "../axtrap" }
 axconfig = { path = "../axconfig" }
-axlog = { path = "../axlog" }
+axlog2 = { path = "../axlog2" }
 axsyscall = { path = "../axsyscall" }
 task = { path = "../task" }
 run_queue = { path = "../run_queue" }
 axdriver = { path = "../axdriver" }
 axmount = { path = "../axmount" }
-crate_interface = { path = "../../crates/crate_interface" }
+#crate_interface = { path = "../../crates/crate_interface" }
 percpu2 = { path = "../../crates/percpu2", optional = true }
 fork = { path = "../fork" }
 exec = { path = "../exec" }

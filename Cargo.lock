@@ -471,6 +471,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "axlog2"
+version = "0.1.0"
+dependencies = [
+ "axlog2",
+ "cfg-if",
+ "chrono",
+ "early_console",
+ "log",
+ "spinbase",
+]
+
+[[package]]
 name = "axmount"
 version = "0.1.0"
 dependencies = [
@@ -1015,6 +1027,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "early_console"
+version = "0.1.0"
+dependencies = [
+ "axconfig",
+ "cfg-if",
+ "log",
+ "riscv",
+ "sbi-rt",
+]
+
+[[package]]
 name = "either"
 version = "1.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1437,12 +1460,11 @@ dependencies = [
  "axdtb",
  "axerrno",
  "axhal",
- "axlog",
+ "axlog2",
  "axmount",
  "axsyscall",
  "axtrap",
  "axtype",
- "crate_interface",
  "exec",
  "fork",
  "percpu2",

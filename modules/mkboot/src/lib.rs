@@ -3,7 +3,7 @@
 #![cfg_attr(not(test), no_std)]
 
 #[macro_use]
-extern crate axlog;
+extern crate axlog2;
 extern crate alloc;
 use alloc::string::String;
 use alloc::vec::Vec;
@@ -38,34 +38,6 @@ const LOGO: &str = r#"
 d88P     888 888      "Y8888P  "Y8888   "Y88888P"   "Y8888P"
 "#;
 
-struct LogIfImpl;
-
-#[crate_interface::impl_interface]
-impl axlog::LogIf for LogIfImpl {
-    fn console_write_str(s: &str) {
-        axhal::console::write_bytes(s.as_bytes());
-    }
-
-    fn current_time() -> core::time::Duration {
-        axhal::time::current_time()
-    }
-
-    fn current_cpu_id() -> Option<usize> {
-        #[cfg(feature = "smp")]
-        if is_init_ok() {
-            Some(axhal::cpu::this_cpu_id())
-        } else {
-            None
-        }
-        #[cfg(not(feature = "smp"))]
-        Some(0)
-    }
-
-    fn current_task_id() -> Option<u64> {
-        None
-    }
-}
-
 /// The main entry point for monolithic kernel startup.
 #[cfg_attr(not(test), no_mangle)]
 pub fn rust_main(cpu_id: usize, dtb: usize) -> ! {
@@ -87,8 +59,8 @@ pub fn rust_main(cpu_id: usize, dtb: usize) -> ! {
         option_env!("AX_LOG").unwrap_or(""),
     );
 
-    axlog::init();
-    axlog::set_max_level(option_env!("AX_LOG").unwrap_or("")); // no effect if set `log-level-*` features
+    axlog2::init();
+    axlog2::set_max_level(option_env!("AX_LOG").unwrap_or("")); // no effect if set `log-level-*` features
     info!("Logging is enabled.");
     info!(
         "MacroKernel is starting: Primary CPU {} started, dtb = {:#x}.",
