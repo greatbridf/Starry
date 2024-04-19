@@ -4,12 +4,12 @@ mod macros;
 use axhal::arch::TrapFrame;
 
 use riscv::register::scause::{self, Exception as E, Trap};
-use riscv::register::{stval, stvec};
+use riscv::register::stvec;
 
-#[cfg(not(feature = "monolithic"))]
-use axruntime::trap::*;
+use crate::trap::*;
+
 #[cfg(feature = "monolithic")]
-use linux_syscall_api::trap::*;
+use linux_syscall_api::trap::MappingFlags;
 
 include_trap_asm_marcos!();
 core::arch::global_asm!(
@@ -39,7 +39,8 @@ fn handle_breakpoint(sepc: &mut usize) {
 #[no_mangle]
 pub fn riscv_trap_handler(tf: &mut TrapFrame, from_user: bool) {
     let scause = scause::read();
-
+    #[cfg(feature = "monolithic")]
+    crate::trap::record_trap(scause.code());
     match scause.cause() {
         Trap::Exception(E::Breakpoint) => handle_breakpoint(&mut tf.sepc),
         Trap::Interrupt(_) => handle_irq(scause.bits(), from_user),
@@ -59,7 +60,7 @@ pub fn riscv_trap_handler(tf: &mut TrapFrame, from_user: bool) {
 
         #[cfg(feature = "monolithic")]
         Trap::Exception(E::InstructionPageFault) => {
-            let addr = stval::read();
+            let addr = riscv::register::stval::read();
             if !from_user {
                 unimplemented!(
                     "I page fault from kernel, addr: {:X}, sepc: {:X}",
@@ -72,7 +73,7 @@ pub fn riscv_trap_handler(tf: &mut TrapFrame, from_user: bool) {
 
         #[cfg(feature = "monolithic")]
         Trap::Exception(E::LoadPageFault) => {
-            let addr = stval::read();
+            let addr = riscv::register::stval::read();
             if !from_user {
                 unimplemented!(
                     "L page fault from kernel, addr: {:X}, sepc: {:X}",
@@ -85,7 +86,7 @@ pub fn riscv_trap_handler(tf: &mut TrapFrame, from_user: bool) {
 
         #[cfg(feature = "monolithic")]
         Trap::Exception(E::StorePageFault) => {
-            let addr = stval::read();
+            let addr = riscv::register::stval::read();
             if !from_user {
                 unimplemented!(
                     "S page fault from kernel, addr: {:X}, sepc: {:X}",

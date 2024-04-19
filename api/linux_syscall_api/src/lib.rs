@@ -8,7 +8,6 @@ mod syscall_fs;
 mod syscall_mem;
 mod syscall_net;
 mod syscall_task;
-pub use syscall::*;
 
 pub use axfs::api::{File, OpenFlags};
 pub use axprocess::link::{create_link, FilePath};

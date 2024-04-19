@@ -6,9 +6,10 @@ authors = ["Youjie Zheng <zyj578335934@gmail.com>"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-monolithic = ["alloc", "dep:linux_syscall_api"]
+monolithic = ["alloc", "dep:linux_syscall_api", "axtrap/monolithic"]
 alloc = ["dep:axalloc"]
 smp = ["axruntime/smp"]
+irq = ["axtrap/irq"]
 
 [dependencies]
 cfg-if = "1.0"

@@ -10,27 +10,27 @@ description = "ArceOS user program library for linux apps with posix_syscall"
 [features]
 default = ["monolithic"]
 
-monolithic = ["linux_syscall_api/monolithic", "axfeat/monolithic", "paging", "fs", "multitask", "irq", "signal", "net"]
+monolithic = ["axfeat/monolithic", "paging", "fs", "multitask", "irq", "signal", "net"]
 
-alloc = ["axfeat/alloc", "arch_boot/alloc"]
+alloc = ["axfeat/alloc"]
 
-img = ["linux_syscall_api/img"]
+img = ["axfeat/img"]
 
 # Multicore
-smp = ["axfeat/smp", "arch_boot/smp"]
+smp = ["axfeat/smp"]
 
 # Floating point/SIMD
 fp_simd = ["axfeat/fp_simd"]
 
 # Interrupts
-irq = ["linux_syscall_api/irq", "axfeat/irq"]
+irq = ["axfeat/irq"]
 
 # Memory
-paging = ["axfeat/paging", "linux_syscall_api/paging"]
+paging = ["axfeat/paging"]
 tls = ["axfeat/tls"]
 
 # Multi-threading and scheduler
-multitask = ["linux_syscall_api/multitask", "axfeat/multitask"]
+multitask = ["axfeat/multitask"]
 sched_fifo = ["axfeat/sched_fifo"]
 sched_rr = ["axfeat/sched_rr"]
 sched_cfs = ["axfeat/sched_cfs"]
@@ -42,17 +42,17 @@ display = ["axfeat/display"]
 bus-pci = ["axfeat/bus-pci"]
 
 # Fs
-fs = ["linux_syscall_api/fs"]
-fatfs = ["linux_syscall_api/fatfs"]
-ext4fs = ["linux_syscall_api/ext4fs", "axlibc/fs"]
-myfs = ["linux_syscall_api/myfs"]
+fs = ["axfeat/fs"]
+fatfs = ["axfeat/fatfs"]
+ext4fs = ["axfeat/ext4fs", "axlibc/fs"]
+myfs = ["axfeat/myfs"]
 devfs = []
 
 # Signal
-signal = ["linux_syscall_api/signal"]
+signal = ["axfeat/signal"]
 
 # Network
-net = ["linux_syscall_api/net"]
+net = ["axfeat/net", "linux_syscall_api/net"]
 
 # Logging
 log-level-off = ["axfeat/log-level-off"]
@@ -67,5 +67,4 @@ linux_syscall_api = { path = "../../api/linux_syscall_api" }
 axfeat = { path = "../../api/axfeat" }
 axlibc = { path = "../axlibc", optional = true }
 axlog = { path = "../../modules/axlog" }
-arch_boot = { path = "../../entry/arch_boot", features = ["monolithic"] }
-axruntime = { path = "../../modules/axruntime" }
+arch_boot = { path = "../../entry/arch_boot" }

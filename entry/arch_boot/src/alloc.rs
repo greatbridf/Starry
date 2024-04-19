@@ -1,5 +1,7 @@
 pub fn init_allocator() {
     use axhal::mem::{memory_regions, phys_to_virt, MemRegionFlags};
+    axlog::info!("Initialize global memory allocator...");
+    axlog::info!("  use {} allocator.", axalloc::global_allocator().name());
 
     let mut max_region_size = 0;
     let mut max_region_paddr = 0.into();

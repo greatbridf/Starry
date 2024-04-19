@@ -6,8 +6,9 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-default = ["monolithic"]
+default = []
 monolithic = ["dep:linux_syscall_api"]
+irq = []
 
 [dependencies]
 axlog = { path = "../../modules/axlog" }
@@ -16,6 +17,7 @@ linux_syscall_api = { path = "../../api/linux_syscall_api", optional = true }
 handler_table = { path = "../../crates/handler_table" }
 lazy_init = { path = "../../crates/lazy_init" }
 axhal = { path = "../../modules/axhal" }
+kernel_guard = { path = "../../crates/kernel_guard" }
 
 [target.'cfg(any(target_arch = "riscv32", target_arch = "riscv64"))'.dependencies]
 riscv = "0.10"

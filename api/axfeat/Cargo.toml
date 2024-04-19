@@ -12,23 +12,25 @@ documentation = "https://rcore-os.github.io/arceos/axfeat/index.html"
 [features]
 default = []
 
+img = ["axruntime/img"]
+
 # Monolithic kernel
-monolithic = ["axruntime/monolithic", "axhal/monolithic", "dep:axprocess"]
+monolithic = ["axruntime/monolithic", "axhal/monolithic", "dep:axprocess", "arch_boot/monolithic"]
 
 # Signal
 signal = ["axruntime/signal"]
 
 # Multicore
-smp = ["axhal/smp", "axruntime/smp", "spinlock/smp"]
+smp = ["axhal/smp", "axruntime/smp", "spinlock/smp", "arch_boot/smp"]
 
 # Floating point/SIMD
 fp_simd = ["axhal/fp_simd"]
 
 # Interrupts
-irq = ["axhal/irq", "axruntime/irq", "axtask?/irq"]
+irq = ["axhal/irq", "axruntime/irq", "axtask?/irq", "arch_boot/irq"]
 
 # Memory
-alloc = ["axalloc", "axruntime/alloc"]
+alloc = ["axalloc", "axruntime/alloc", "arch_boot/alloc"]
 alloc-tlsf = ["axalloc/tlsf"]
 alloc-slab = ["axalloc/slab"]
 alloc-buddy = ["axalloc/buddy"]
@@ -81,3 +83,4 @@ axsync = { path = "../../modules/axsync", optional = true }
 axtask = { path = "../../modules/axtask", optional = true }
 axprocess = { path = "../../modules/axprocess", optional = true }
 spinlock = { path = "../../crates/spinlock", optional = true }
+arch_boot = { path = "../../entry/arch_boot" }

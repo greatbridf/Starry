@@ -35,6 +35,8 @@
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
+extern crate arch_boot;
+
 #[path = "."]
 mod ctypes {
     #[rustfmt::skip]

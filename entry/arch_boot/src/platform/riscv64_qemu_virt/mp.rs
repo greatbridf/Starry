@@ -30,8 +30,10 @@ pub fn start_secondary_cpus(primary_cpu_id: usize) {
             start_given_secondary_cpu(i, stack_top);
             logic_cpu_id += 1;
 
-            while axruntime::mp::entered_cpus_num() <= logic_cpu_id {
-                core::hint::spin_loop();
+            loop {
+                if axruntime::mp::entered_cpus_num() > logic_cpu_id {
+                    break;
+                }
             }
         }
     }

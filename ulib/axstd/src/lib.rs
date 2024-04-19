@@ -52,7 +52,7 @@
 #![feature(ip_in_core)]
 #[cfg(feature = "alloc")]
 extern crate alloc;
-
+extern crate arch_boot;
 #[cfg(feature = "alloc")]
 #[doc(no_inline)]
 pub use alloc::{boxed, collections, format, string, vec};
@@ -62,8 +62,6 @@ pub use core::{arch, cell, cmp, hint, marker, mem, ops, ptr, slice, str};
 
 #[macro_use]
 mod macros;
-
-extern crate arch_boot;
 
 pub mod env;
 pub mod io;

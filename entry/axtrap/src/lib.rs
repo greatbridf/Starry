@@ -18,6 +18,8 @@
 
 mod arch;
 
+mod trap;
+
 pub fn init_trap_vector() {
     #[cfg(any(
         target_arch = "riscv32",

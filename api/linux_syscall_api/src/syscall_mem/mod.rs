@@ -13,7 +13,6 @@ pub fn mem_syscall(syscall_id: mem_syscall_id::MemSyscallId, args: [usize; 6]) -
     match syscall_id {
         BRK => syscall_brk(args),
         MUNMAP => syscall_munmap(args),
-        #[cfg(feature = "fs")]
         MMAP => syscall_mmap(args),
         MSYNC => syscall_msync(args),
         MPROTECT => syscall_mprotect(args),

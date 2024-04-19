@@ -322,6 +322,7 @@ dependencies = [
 name = "axfeat"
 version = "0.1.0"
 dependencies = [
+ "arch_boot",
  "axalloc",
  "axdisplay",
  "axdriver",
@@ -559,7 +560,6 @@ dependencies = [
  "axfeat",
  "axlibc",
  "axlog",
- "axruntime",
  "linux_syscall_api",
 ]
 
@@ -616,6 +616,7 @@ dependencies = [
  "axlog",
  "cfg-if",
  "handler_table",
+ "kernel_guard",
  "lazy_init",
  "linux_syscall_api",
  "riscv",
@@ -1370,7 +1371,6 @@ version = "0.1.0"
 dependencies = [
  "axconfig",
  "axerrno",
- "axfeat",
  "axfs",
  "axhal",
  "axlog",
@@ -1384,7 +1384,6 @@ dependencies = [
  "bitflags 2.4.0",
  "cfg-if",
  "crate_interface",
- "kernel_guard",
  "lazy_init",
  "num_enum",
  "numeric-enum-macro",

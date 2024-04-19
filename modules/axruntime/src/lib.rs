@@ -25,9 +25,6 @@ extern crate axlog;
 #[cfg(all(target_os = "none", not(test)))]
 mod lang_items;
 
-#[cfg(not(feature = "monolithic"))]
-mod trap;
-
 #[cfg(feature = "smp")]
 pub mod mp;
 
@@ -122,8 +119,6 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
         option_env!("AX_LOG").unwrap_or(""),
     );
 
-    axlog::init();
-    axlog::set_max_level(option_env!("AX_LOG").unwrap_or("")); // no effect if set `log-level-*` features
     info!("Logging is enabled.");
     info!("Primary CPU {} started, dtb = {:#x}.", cpu_id, dtb);
     info!("Platform name {}.", axhal::platform_name());
@@ -212,6 +207,7 @@ cfg_if::cfg_if! {
         fn remap_kernel_memory() -> Result<(), axhal::paging::PagingError> {
             use axhal::mem::{memory_regions, phys_to_virt};
             if axhal::cpu::this_cpu_is_bsp() {
+                info!("cpu: {}",axhal::cpu::this_cpu_id());
                 let mut kernel_page_table = PageTable::try_new()?;
                 for r in memory_regions() {
                     kernel_page_table.map_region(

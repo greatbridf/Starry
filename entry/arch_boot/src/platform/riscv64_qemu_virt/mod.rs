@@ -8,6 +8,9 @@ unsafe extern "C" fn rust_entry(cpu_id: usize, dtb: usize) {
     axhal::cpu::init_primary(cpu_id);
 
     axtrap::init_trap_vector();
+    axlog::init();
+    axlog::set_max_level(option_env!("AX_LOG").unwrap_or("")); // no effect if set `log-level-*` features
+
     #[cfg(feature = "alloc")]
     crate::alloc::init_allocator();
 

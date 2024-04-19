@@ -23,7 +23,7 @@ crate-type = ["lib", "staticlib"]
 default = []
 
 # Multicore
-smp = ["arceos_posix_api/smp", "arch_boot/smp"]
+smp = ["arceos_posix_api/smp"]
 
 # Floating point/SIMD
 fp_simd = ["axfeat/fp_simd"]
