@@ -114,7 +114,7 @@ pub fn syscall_sched_setaffinity(args: [usize; 6]) -> SyscallResult {
 
     let mask = unsafe { *mask };
 
-    task.set_cpu_set(mask, cpu_set_size);
+    task.set_cpu_set(mask, cpu_set_size, axconfig::SMP);
 
     Ok(0)
 }

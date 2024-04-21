@@ -12,13 +12,14 @@ use axconfig::{MAX_USER_HEAP_SIZE, MAX_USER_STACK_SIZE, USER_HEAP_BASE, USER_STA
 use axerrno::{AxError, AxResult};
 use axhal::mem::VirtAddr;
 use axhal::paging::MappingFlags;
+use axhal::time::{current_time_nanos, NANOS_PER_MICROS, NANOS_PER_SEC};
 use axhal::KERNEL_PROCESS_ID;
 use axlog::{debug, info};
 use axmem::MemorySet;
-#[cfg(feature = "signal")]
+
 use axsignal::signal_no::SignalNo;
 use axsync::Mutex;
-use axtask::{current, yield_now, CurrentTask, TaskId, TaskState, IDLE_TASK, RUN_QUEUE};
+use axtask::{current, yield_now, AxTaskRef, CurrentTask, TaskId, TaskState, IDLE_TASK, RUN_QUEUE};
 use elf_parser::{
     get_app_stack_region, get_auxv_vector, get_elf_entry, get_elf_segments, get_relocate_pairs,
 };
@@ -28,7 +29,7 @@ use crate::flags::WaitStatus;
 use crate::futex::clear_wait;
 use crate::link::real_path;
 use crate::process::{Process, PID2PC, TID2TASK};
-#[cfg(feature = "signal")]
+
 use crate::signal::{send_signal_to_process, send_signal_to_thread};
 
 /// 初始化内核调度进程
@@ -74,7 +75,7 @@ pub fn exit_current_task(exit_code: i32) -> ! {
         current_task.is_leader(),
     );
     // 检查这个任务是否有sig_child信号
-    #[cfg(feature = "signal")]
+
     if current_task.get_sig_child() || current_task.is_leader() {
         let parent = process.get_parent();
         if parent != KERNEL_PROCESS_ID {
@@ -118,7 +119,7 @@ pub fn exit_current_task(exit_code: i32) -> ! {
 
         process.tasks.lock().clear();
         process.fd_manager.fd_table.lock().clear();
-        #[cfg(feature = "signal")]
+
         process.signal_modules.lock().clear();
 
         let mut pid2pc = PID2PC.lock();
@@ -147,7 +148,7 @@ pub fn exit_current_task(exit_code: i32) -> ! {
             }
         }
         drop(tasks);
-        #[cfg(feature = "signal")]
+
         process.signal_modules.lock().remove(&curr_id);
         drop(process);
     }
@@ -253,21 +254,27 @@ pub fn load_app(
 /// 当从内核态到用户态时，统计对应进程的时间信息
 pub fn time_stat_from_kernel_to_user() {
     let curr_task = current();
-    curr_task.time_stat_from_kernel_to_user();
+    curr_task.time_stat_from_kernel_to_user(current_time_nanos() as usize);
 }
 
 #[no_mangle]
 /// 当从用户态到内核态时，统计对应进程的时间信息
 pub fn time_stat_from_user_to_kernel() {
     let curr_task = current();
-    curr_task.time_stat_from_user_to_kernel();
+    curr_task.time_stat_from_user_to_kernel(current_time_nanos() as usize);
 }
 
 /// 统计时间输出
-/// (用户态秒，用户态微妙，内核态秒，内核态微妙)
+/// (用户态秒，用户态微秒，内核态秒，内核态微秒)
 pub fn time_stat_output() -> (usize, usize, usize, usize) {
     let curr_task = current();
-    curr_task.time_stat_output()
+    let (utime_ns, stime_ns) = curr_task.time_stat_output();
+    (
+        utime_ns / NANOS_PER_SEC,
+        utime_ns / NANOS_PER_MICROS,
+        stime_ns / NANOS_PER_SEC,
+        stime_ns / NANOS_PER_MICROS,
+    )
 }
 
 /// To deal with the page fault
@@ -288,7 +295,6 @@ pub fn handle_page_fault(addr: VirtAddr, flags: MappingFlags) {
     {
         axhal::arch::flush_tlb(None);
     } else {
-        #[cfg(feature = "signal")]
         let _ = send_signal_to_thread(current().id().as_u64() as isize, SignalNo::SIGSEGV as isize);
     }
 }
@@ -369,4 +375,11 @@ pub fn current_task() -> CurrentTask {
 pub fn set_child_tid(tid: usize) {
     let curr = current_task();
     curr.set_clear_child_tid(tid);
+}
+
+pub fn get_task_ref(tid: u64) -> Option<AxTaskRef> {
+    TID2TASK
+        .lock()
+        .get(&tid)
+        .map(|task_ref| Arc::clone(task_ref))
 }

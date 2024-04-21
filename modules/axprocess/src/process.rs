@@ -6,20 +6,23 @@ use alloc::vec::Vec;
 use alloc::{collections::BTreeMap, string::String};
 use axerrno::{AxError, AxResult};
 use axfs::api::{FileIO, OpenFlags};
-use axhal::arch::{write_page_table_root0, TrapFrame};
+use axhal::arch::{
+    read_trapframe_from_kstack, write_page_table_root0, write_trapframe_to_kstack, TrapFrame,
+};
 use axhal::mem::{phys_to_virt, VirtAddr};
 
+use axhal::time::current_time_nanos;
 use axhal::KERNEL_PROCESS_ID;
 use axlog::{debug, error};
 use axmem::MemorySet;
 use axsync::Mutex;
-use axtask::{current, AxTaskRef, TaskId, TaskInner, RUN_QUEUE};
+use axtask::{current, new_task, AxTaskRef, TaskId, RUN_QUEUE};
 use core::sync::atomic::{AtomicBool, AtomicI32, AtomicU64, Ordering};
 
 use crate::fd_manager::FdManager;
 use crate::flags::CloneFlags;
 use crate::futex::FutexRobustList;
-#[cfg(feature = "signal")]
+
 use crate::signal::SignalModule;
 use crate::stdio::{Stderr, Stdin, Stdout};
 use crate::{load_app, yield_now_task};
@@ -31,7 +34,6 @@ pub static TID2TASK: Mutex<BTreeMap<u64, AxTaskRef>> = Mutex::new(BTreeMap::new(
 pub static PID2PC: Mutex<BTreeMap<u64, Arc<Process>>> = Mutex::new(BTreeMap::new());
 const FD_LIMIT_ORIGIN: usize = 1025;
 
-#[cfg(feature = "signal")]
 extern "C" {
     fn start_signal_trampoline();
 }
@@ -68,7 +70,6 @@ pub struct Process {
     /// 当前用户堆的堆顶，不能小于基址，不能大于基址加堆的最大大小
     pub heap_top: AtomicU64,
 
-    #[cfg(feature = "signal")]
     /// 信号处理模块
     /// 第一维代表TaskID，第二维代表对应的信号处理模块
     pub signal_modules: Mutex<BTreeMap<u64, SignalModule>>,
@@ -187,7 +188,7 @@ impl Process {
             heap_bottom: AtomicU64::new(heap_bottom),
             heap_top: AtomicU64::new(heap_bottom),
             fd_manager: FdManager::new(fd_table, FD_LIMIT_ORIGIN),
-            #[cfg(feature = "signal")]
+
             signal_modules: Mutex::new(BTreeMap::new()),
             robust_list: Mutex::new(BTreeMap::new()),
             blocked_by_vfork: Mutex::new(false),
@@ -198,7 +199,7 @@ impl Process {
     pub fn init(args: Vec<String>, envs: &Vec<String>) -> AxResult<AxTaskRef> {
         let path = args[0].clone();
         let mut memory_set = MemorySet::new_with_kernel_mapped();
-        #[cfg(feature = "signal")]
+
         {
             use axhal::mem::virt_to_phys;
             use axhal::paging::MappingFlags;
@@ -250,13 +251,12 @@ impl Process {
                 })),
             ],
         ));
-        let new_task = TaskInner::new(
+        let new_task = new_task(
             || {},
             path,
             axconfig::TASK_STACK_SIZE,
             new_process.pid(),
             page_table_token,
-            #[cfg(feature = "signal")]
             false,
         );
         TID2TASK
@@ -265,11 +265,10 @@ impl Process {
         new_task.set_leader(true);
         let new_trap_frame =
             TrapFrame::app_init_context(entry.as_usize(), user_stack_bottom.as_usize());
-        new_task.set_trap_context(new_trap_frame);
-        // 需要将完整内容写入到内核栈上，first_into_user并不会复制到内核栈上
-        new_task.set_trap_in_kernel_stack();
+        // // 需要将完整内容写入到内核栈上，first_into_user并不会复制到内核栈上
+        write_trapframe_to_kstack(new_task.get_kernel_stack_top().unwrap(), &new_trap_frame);
         new_process.tasks.lock().push(Arc::clone(&new_task));
-        #[cfg(feature = "signal")]
+
         new_process
             .signal_modules
             .lock()
@@ -295,40 +294,13 @@ impl Process {
     }
 }
 
-struct VforkHandler;
-
-use axtask::{VforkCheck, VforkSet};
-
-#[crate_interface::impl_interface]
-impl VforkCheck for VforkHandler {
-    fn check_vfork(&self, process_id: u64) -> bool {
-        let pid2pc = PID2PC.lock();
-        match pid2pc.get(&process_id) {
-            Some(process) => *process.blocked_by_vfork.lock(),
-            None => panic!("the process_id {} will be checked nonexists", process_id),
-        }
-    }
-}
-
-#[crate_interface::impl_interface]
-impl VforkSet for VforkHandler {
-    /// set parent process's vfork to false
-    fn vfork_set(&self, process_id: u64, status: bool) {
-        let pid2pc = PID2PC.lock();
-        // 如果 process_id 对应的进程存在，则设置阻塞状态
-        if let Some(process) = pid2pc.get(&process_id) {
-            process.set_vfork_block(status)
-        }
-    }
-}
-
 impl Process {
     /// 将当前进程替换为指定的用户程序
     /// args为传入的参数
     /// 任务的统计时间会被重置
     pub fn exec(&self, name: String, args: Vec<String>, envs: &Vec<String>) -> AxResult<()> {
         let parent_pid = self.get_parent();
-        VforkHandler.vfork_set(parent_pid, false);
+
         // 首先要处理原先进程的资源
         // 处理分配的页帧
         // 之后加入额外的东西之后再处理其他的包括信号等因素
@@ -378,7 +350,7 @@ impl Process {
         // 当前任务被设置为主线程
         current_task.set_leader(true);
         // 重置统计时间
-        current_task.time_stat_clear();
+        current_task.reset_time_stat(current_time_nanos() as usize);
         current_task.set_name(name.split('/').last().unwrap());
         assert!(tasks.len() == 1);
         drop(tasks);
@@ -416,7 +388,6 @@ impl Process {
             .lock()
             .insert(current_task.id().as_u64(), FutexRobustList::default());
 
-        #[cfg(feature = "signal")]
         {
             use axhal::mem::virt_to_phys;
             use axhal::paging::MappingFlags;
@@ -448,8 +419,10 @@ impl Process {
         // user_stack_top = user_stack_top / PAGE_SIZE_4K * PAGE_SIZE_4K;
         let new_trap_frame =
             TrapFrame::app_init_context(entry.as_usize(), user_stack_bottom.as_usize());
-        current_task.set_trap_context(new_trap_frame);
-        current_task.set_trap_in_kernel_stack();
+        write_trapframe_to_kstack(
+            current_task.get_kernel_stack_top().unwrap(),
+            &new_trap_frame,
+        );
         Ok(())
     }
 
@@ -462,7 +435,7 @@ impl Process {
         ptid: usize,
         tls: usize,
         ctid: usize,
-        #[cfg(feature = "signal")] sig_child: bool,
+        sig_child: bool,
     ) -> AxResult<u64> {
         // if self.tasks.lock().len() > 100 {
         //     // 任务过多，手动特判结束，用来作为QEMU内存不足的应对方法
@@ -475,7 +448,7 @@ impl Process {
             let memory_set = Arc::new(Mutex::new(MemorySet::clone_or_err(
                 &self.memory_set.lock().lock(),
             )?));
-            #[cfg(feature = "signal")]
+
             {
                 use axhal::mem::virt_to_phys;
                 use axhal::paging::MappingFlags;
@@ -512,13 +485,12 @@ impl Process {
             // 创建父子关系，此时以self作为父进程
             self.pid
         };
-        let new_task = TaskInner::new(
+        let new_task = new_task(
             || {},
             String::from(self.tasks.lock()[0].name().split('/').last().unwrap()),
             axconfig::TASK_STACK_SIZE,
             process_id,
             new_memory_set.lock().lock().page_table_token(),
-            #[cfg(feature = "signal")]
             sig_child,
         );
         #[cfg(target_arch = "x86_64")]
@@ -531,7 +503,7 @@ impl Process {
         TID2TASK
             .lock()
             .insert(new_task.id().as_u64(), Arc::clone(&new_task));
-        #[cfg(feature = "signal")]
+
         let new_handler = if flags.contains(CloneFlags::CLONE_SIGHAND) {
             // let curr_id = current().id().as_u64();
             self.signal_modules
@@ -630,7 +602,7 @@ impl Process {
             //     (&Arc::clone(&new_task)) as *const _ as usize
             // );
             self.tasks.lock().push(Arc::clone(&new_task));
-            #[cfg(feature = "signal")]
+
             self.signal_modules.lock().insert(
                 new_task.id().as_u64(),
                 SignalModule::init_signal(Some(new_handler)),
@@ -653,7 +625,7 @@ impl Process {
             PID2PC.lock().insert(process_id, Arc::clone(&new_process));
             new_process.tasks.lock().push(Arc::clone(&new_task));
             // 若是新建了进程，那么需要把进程的父子关系进行记录
-            #[cfg(feature = "signal")]
+
             new_process.signal_modules.lock().insert(
                 new_task.id().as_u64(),
                 SignalModule::init_signal(Some(new_handler)),
@@ -671,7 +643,9 @@ impl Process {
         }
         let current_task = current();
         // 复制原有的trap上下文
-        let mut trap_frame = unsafe { *(current_task.get_first_trap_frame()) };
+        // let mut trap_frame = unsafe { *(current_task.get_first_trap_frame()) };
+        let mut trap_frame =
+            read_trapframe_from_kstack(current_task.get_kernel_stack_top().unwrap());
         // drop(current_task);
         // 新开的进程/线程返回值为0
         trap_frame.set_ret_code(0);
@@ -695,8 +669,7 @@ impl Process {
             //     trap_frame.sepc, trap_frame.regs.sp
             // );
         }
-        new_task.set_trap_context(trap_frame);
-        new_task.set_trap_in_kernel_stack();
+        write_trapframe_to_kstack(new_task.get_kernel_stack_top().unwrap(), &trap_frame);
         RUN_QUEUE.lock().add_task(new_task);
         // 判断是否为VFORK
         if flags.contains(CloneFlags::CLONE_VFORK) {
@@ -753,7 +726,7 @@ impl Process {
         self.fd_manager.cwd.lock().clone()
     }
 }
-#[cfg(feature = "signal")]
+
 /// 与信号相关的方法
 impl Process {
     /// 查询当前任务是否存在未决信号

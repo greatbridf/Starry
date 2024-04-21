@@ -94,7 +94,7 @@ impl Pthread {
         }
 
         let thread = unsafe { Box::from_raw(ptr as *mut Pthread) };
-        thread.inner.join();
+        axtask::join(&thread.inner);
         let tid = thread.inner.id().as_u64();
         let retval = unsafe { *thread.retval.result.get() };
         TID_TO_PTHREAD.write().remove(&tid);

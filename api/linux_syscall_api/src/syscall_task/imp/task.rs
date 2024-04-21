@@ -243,7 +243,12 @@ pub fn syscall_clone3(args: [usize; 6]) -> SyscallResult {
 #[cfg(target_arch = "x86_64")]
 pub fn syscall_vfork() -> SyscallResult {
     let args: [usize; 6] = [0x4011, 0, 0, 0, 0, 0];
-    syscall_clone(args)
+    // TODO: check the correctness
+    syscall_clone(args).map(|new_task_id| {
+        let task_ref = axprocess::get_task_ref(new_task_id as u64).unwrap();
+        axtask::vfork_suspend(&task_ref);
+        new_task_id
+    })
 }
 
 /// 等待子进程完成任务，若子进程没有完成，则自身yield

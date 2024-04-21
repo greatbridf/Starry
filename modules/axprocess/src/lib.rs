@@ -12,5 +12,5 @@ pub mod link;
 mod stdio;
 
 mod fd_manager;
-#[cfg(feature = "signal")]
+
 pub mod signal;

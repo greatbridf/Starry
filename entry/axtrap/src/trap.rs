@@ -10,6 +10,9 @@ pub fn handle_irq(_irq_num: usize, _from_user: bool) {
         #[cfg(not(feature = "monolithic"))]
         axhal::irq::dispatch_irq(_irq_num);
         drop(guard); // rescheduling may occur when preemption is re-enabled.
+
+        #[cfg(feature = "preempt")]
+        axtask::current_check_preempt_pending();
     }
 }
 

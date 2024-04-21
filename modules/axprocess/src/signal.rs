@@ -2,7 +2,11 @@
 extern crate alloc;
 use alloc::sync::Arc;
 use axerrno::{AxError, AxResult};
-use axhal::{arch::TrapFrame, cpu::this_cpu_id, KERNEL_PROCESS_ID};
+use axhal::{
+    arch::{read_trapframe_from_kstack, write_trapframe_to_kstack, TrapFrame},
+    cpu::this_cpu_id,
+    KERNEL_PROCESS_ID,
+};
 use axlog::{info, warn};
 use axsignal::{
     action::{SigActionFlags, SignalDefault, SIG_IGN},
@@ -12,7 +16,7 @@ use axsignal::{
     SignalHandler, SignalSet,
 };
 use axsync::Mutex;
-use axtask::{SignalCaller, TaskState, RUN_QUEUE};
+use axtask::{TaskState, RUN_QUEUE};
 
 /// 信号处理模块，进程间不共享
 pub struct SignalModule {
@@ -101,6 +105,9 @@ fn terminate_process(signal: SignalNo) {
 pub fn handle_signals() {
     let process = current_process();
     let current_task = current_task();
+    if let Some(signal_no) = current_task.check_pending_signal() {
+        send_signal_to_thread(current_task.id().as_u64() as usize, signal_no);
+    }
     if process.get_zombie() {
         if current_task.is_leader() {
             return;
@@ -187,8 +194,8 @@ pub fn handle_signals() {
     // 1. 传参
     // 2. 返回值ra地址的设定，与是否设置了SA_RESTORER有关
 
-    // 注意是直接修改内核栈上的内容
-    let trap_frame = unsafe { &mut *(current_task.get_first_trap_frame()) };
+    // 读取当前的trap上下文
+    let mut trap_frame = read_trapframe_from_kstack(current_task.get_kernel_stack_top().unwrap());
 
     // // 新的trap上下文的sp指针位置，由于SIGINFO会存放内容，所以需要开个保护区域
     let mut sp = trap_frame.get_sp() - USER_SIGNAL_PROTECT;
@@ -243,6 +250,8 @@ pub fn handle_signals() {
     }
 
     trap_frame.set_user_sp(sp);
+    // 将修改后的trap上下文写回内核栈
+    write_trapframe_to_kstack(current_task.get_kernel_stack_top().unwrap(), &trap_frame);
     drop(signal_handler);
     drop(signal_modules);
 }
@@ -254,8 +263,8 @@ pub fn signal_return() -> isize {
     if load_trap_for_signal() {
         // 说明确实存在着信号处理函数的trap上下文
         // 此时内核栈上存储的是调用信号处理前的trap上下文
-        let trap_frame = current_task().get_first_trap_frame();
-        unsafe { (*trap_frame).get_ret_code() as isize }
+        read_trapframe_from_kstack(current_task().get_kernel_stack_top().unwrap()).get_ret_code()
+            as isize
     } else {
         // 没有进行信号处理，但是调用了sig_return
         // 此时直接返回-1
@@ -321,12 +330,4 @@ pub fn send_signal_to_thread(tid: isize, signum: isize) -> AxResult<()> {
         RUN_QUEUE.lock().unblock_task(task, false);
     }
     Ok(())
-}
-
-struct SignalCallerImpl;
-#[crate_interface::impl_interface]
-impl SignalCaller for SignalCallerImpl {
-    fn send_signal(tid: isize, signum: isize) {
-        send_signal_to_thread(tid, signum).unwrap();
-    }
 }

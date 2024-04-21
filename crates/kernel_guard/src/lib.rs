@@ -56,16 +56,6 @@
 
 mod arch;
 
-/// Low-level interfaces that must be implemented by the crate user.
-#[crate_interface::def_interface]
-pub trait KernelGuardIf {
-    /// How to enable kernel preemption.
-    fn enable_preempt();
-
-    /// How to disable kernel preemption.
-    fn disable_preempt();
-}
-
 /// A base trait that all guards implement.
 pub trait BaseGuard {
     /// The saved state when entering the critical section.
@@ -152,12 +142,14 @@ mod imp {
         fn acquire() -> Self::State {
             // disable preempt
             #[cfg(feature = "preempt")]
-            crate_interface::call_interface!(KernelGuardIf::disable_preempt);
+            // crate_interface::call_interface!(KernelGuardIf::disable_preempt);
+            taskctx::disable_preempt();
         }
         fn release(_state: Self::State) {
             // enable preempt
             #[cfg(feature = "preempt")]
-            crate_interface::call_interface!(KernelGuardIf::enable_preempt);
+            // crate_interface::call_interface!(KernelGuardIf::enable_preempt);
+            taskctx::enable_preempt();
         }
     }
 
@@ -166,7 +158,8 @@ mod imp {
         fn acquire() -> Self::State {
             // disable preempt
             #[cfg(feature = "preempt")]
-            crate_interface::call_interface!(KernelGuardIf::disable_preempt);
+            // crate_interface::call_interface!(KernelGuardIf::disable_preempt);
+            taskctx::disable_preempt();
             // disable IRQs and save IRQ states
             super::arch::local_irq_save_and_disable()
         }
@@ -175,7 +168,8 @@ mod imp {
             super::arch::local_irq_restore(state);
             // enable preempt
             #[cfg(feature = "preempt")]
-            crate_interface::call_interface!(KernelGuardIf::enable_preempt);
+            // crate_interface::call_interface!(KernelGuardIf::enable_preempt);
+            taskctx::enable_preempt();
         }
     }
 

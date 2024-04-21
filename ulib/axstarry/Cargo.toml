@@ -10,7 +10,7 @@ description = "ArceOS user program library for linux apps with posix_syscall"
 [features]
 default = ["monolithic"]
 
-monolithic = ["axfeat/monolithic", "paging", "fs", "multitask", "irq", "signal", "net"]
+monolithic = ["axfeat/monolithic", "paging", "fs", "multitask", "irq", "net"]
 
 alloc = ["axfeat/alloc"]
 
@@ -47,9 +47,6 @@ fatfs = ["axfeat/fatfs"]
 ext4fs = ["axfeat/ext4fs", "axlibc/fs"]
 myfs = ["axfeat/myfs"]
 devfs = []
-
-# Signal
-signal = ["axfeat/signal"]
 
 # Network
 net = ["axfeat/net", "linux_syscall_api/net"]

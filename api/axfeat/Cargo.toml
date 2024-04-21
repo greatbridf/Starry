@@ -17,14 +17,11 @@ img = ["axruntime/img"]
 # Monolithic kernel
 monolithic = ["axruntime/monolithic", "axhal/monolithic", "dep:axprocess", "arch_boot/monolithic"]
 
-# Signal
-signal = ["axruntime/signal"]
-
 # Multicore
 smp = ["axhal/smp", "axruntime/smp", "spinlock/smp", "arch_boot/smp"]
 
 # Floating point/SIMD
-fp_simd = ["axhal/fp_simd"]
+fp_simd = ["axhal/fp_simd", "taskctx/fp_simd"]
 
 # Interrupts
 irq = ["axhal/irq", "axruntime/irq", "axtask?/irq", "arch_boot/irq"]
@@ -40,8 +37,8 @@ tls = ["alloc", "axhal/tls", "axruntime/tls", "axtask?/tls"]
 # Multi-threading and scheduler
 multitask = ["alloc", "axtask/multitask", "axsync/multitask", "axruntime/multitask"]
 sched_fifo = ["axtask/sched_fifo"]
-sched_rr = ["axtask/sched_rr", "irq"]
-sched_cfs = ["axtask/sched_cfs", "irq"]
+sched_rr = ["axtask/sched_rr", "axtrap/preempt", "irq"]
+sched_cfs = ["axtask/sched_cfs", "axtrap/preempt", "irq"]
 
 # File system
 fs = ["alloc", "paging", "axdriver/virtio-blk", "dep:axfs", "axruntime/fs"] # TODO: try to remove "paging"
@@ -84,3 +81,5 @@ axtask = { path = "../../modules/axtask", optional = true }
 axprocess = { path = "../../modules/axprocess", optional = true }
 spinlock = { path = "../../crates/spinlock", optional = true }
 arch_boot = { path = "../../entry/arch_boot" }
+axtrap = { path = "../../entry/axtrap", optional = true }
+taskctx = { path = "../../crates/taskctx", optional = true }

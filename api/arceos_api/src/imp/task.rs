@@ -68,7 +68,8 @@ cfg_task! {
     }
 
     pub fn ax_wait_for_exit(task: AxTaskHandle) -> Option<i32> {
-        task.inner.join()
+        // task.inner.join()
+        axtask::join(&task.inner)
     }
 
     pub fn ax_set_current_priority(prio: isize) -> crate::AxResult {

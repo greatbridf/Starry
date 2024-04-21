@@ -334,7 +334,9 @@ dependencies = [
  "axruntime",
  "axsync",
  "axtask",
+ "axtrap",
  "spinlock",
+ "taskctx",
 ]
 
 [[package]]
@@ -422,6 +424,7 @@ dependencies = [
  "sbi-rt",
  "spinlock",
  "static_assertions",
+ "taskctx",
  "tock-registers",
  "x2apic",
  "x86",
@@ -512,7 +515,6 @@ dependencies = [
  "axtask",
  "bitflags 2.4.0",
  "cfg-if",
- "crate_interface",
  "elf_parser",
  "lazy_static",
  "riscv",
@@ -595,7 +597,6 @@ dependencies = [
  "axsignal",
  "axtask",
  "cfg-if",
- "crate_interface",
  "kernel_guard",
  "lazy_init",
  "log",
@@ -605,6 +606,7 @@ dependencies = [
  "rand",
  "scheduler",
  "spinlock",
+ "taskctx",
  "timer_list",
 ]
 
@@ -614,6 +616,7 @@ version = "0.1.0"
 dependencies = [
  "axhal",
  "axlog",
+ "axtask",
  "cfg-if",
  "handler_table",
  "kernel_guard",
@@ -1317,7 +1320,7 @@ name = "kernel_guard"
 version = "0.1.0"
 dependencies = [
  "cfg-if",
- "crate_interface",
+ "taskctx",
 ]
 
 [[package]]
@@ -2024,6 +2027,19 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-ident",
+]
+
+[[package]]
+name = "taskctx"
+version = "0.1.0"
+dependencies = [
+ "cfg-if",
+ "lazy_init",
+ "log",
+ "memory_addr",
+ "numeric-enum-macro",
+ "static_assertions",
+ "x86",
 ]
 
 [[package]]
