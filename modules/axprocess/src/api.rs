@@ -270,10 +270,10 @@ pub fn time_stat_output() -> (usize, usize, usize, usize) {
     let curr_task = current();
     let (utime_ns, stime_ns) = curr_task.time_stat_output();
     (
-        utime_ns / NANOS_PER_SEC,
-        utime_ns / NANOS_PER_MICROS,
-        stime_ns / NANOS_PER_SEC,
-        stime_ns / NANOS_PER_MICROS,
+        utime_ns / NANOS_PER_SEC as usize,
+        utime_ns / NANOS_PER_MICROS as usize,
+        stime_ns / NANOS_PER_SEC as usize,
+        stime_ns / NANOS_PER_MICROS as usize,
     )
 }
 

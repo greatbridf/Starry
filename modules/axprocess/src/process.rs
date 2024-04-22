@@ -299,8 +299,6 @@ impl Process {
     /// args为传入的参数
     /// 任务的统计时间会被重置
     pub fn exec(&self, name: String, args: Vec<String>, envs: &Vec<String>) -> AxResult<()> {
-        let parent_pid = self.get_parent();
-
         // 首先要处理原先进程的资源
         // 处理分配的页帧
         // 之后加入额外的东西之后再处理其他的包括信号等因素

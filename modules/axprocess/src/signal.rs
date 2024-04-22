@@ -68,16 +68,22 @@ pub fn load_trap_for_signal() -> bool {
     let signal_module = signal_modules.get_mut(&current_task.id().as_u64()).unwrap();
     if let Some(old_trap_frame) = signal_module.last_trap_frame_for_signal.take() {
         unsafe {
-            let now_trap_frame: *mut TrapFrame = current_task.get_first_trap_frame();
+            // let now_trap_frame: *mut TrapFrame = current_task.get_first_trap_frame();
+            let mut now_trap_frame =
+                read_trapframe_from_kstack(current_task.get_kernel_stack_top().unwrap());
             // 考虑当时调用信号处理函数时，sp对应的地址上的内容即是SignalUserContext
             // 此时认为一定通过sig_return调用这个函数
             // 所以此时sp的位置应该是SignalUserContext的位置
-            let sp = (*now_trap_frame).get_sp();
-            *now_trap_frame = old_trap_frame;
+            let sp = now_trap_frame.get_sp();
+            now_trap_frame = old_trap_frame;
             if signal_module.sig_info {
                 let pc = (*(sp as *const SignalUserContext)).get_pc();
-                (*now_trap_frame).set_pc(pc);
+                now_trap_frame.set_pc(pc);
             }
+            write_trapframe_to_kstack(
+                current_task.get_kernel_stack_top().unwrap(),
+                &now_trap_frame,
+            );
         }
         true
     } else {
@@ -106,7 +112,10 @@ pub fn handle_signals() {
     let process = current_process();
     let current_task = current_task();
     if let Some(signal_no) = current_task.check_pending_signal() {
-        send_signal_to_thread(current_task.id().as_u64() as usize, signal_no);
+        send_signal_to_thread(current_task.id().as_u64() as isize, signal_no as isize)
+            .unwrap_or_else(|err| {
+                warn!("send signal failed: {:?}", err);
+            });
     }
     if process.get_zombie() {
         if current_task.is_leader() {
@@ -151,8 +160,9 @@ pub fn handle_signals() {
     // 之前的trap frame已经被处理
     // 说明之前的信号处理函数已经返回，即没有信号嵌套。
     // 此时可以将当前的trap frame保存起来
-    signal_module.last_trap_frame_for_signal =
-        Some(unsafe { *current_task.get_first_trap_frame() });
+    signal_module.last_trap_frame_for_signal = Some(read_trapframe_from_kstack(
+        current_task.get_kernel_stack_top().unwrap(),
+    ));
     // current_task.set_siginfo(false);
     signal_module.sig_info = false;
     // 调取处理函数
