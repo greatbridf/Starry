@@ -5,15 +5,15 @@
 extern crate log;
 extern crate alloc;
 use axerrno::LinuxResult;
-use mm::VmAreaStruct;
-use memory_addr::{is_aligned_4k, align_down_4k, PAGE_SIZE_4K, PAGE_SHIFT};
-use memory_addr::align_up_4k;
-use core::ops::Bound;
-use axhal::mem::{phys_to_virt, virt_to_phys};
-use axhal::arch::TASK_UNMAPPED_BASE;
-use axio::SeekFrom;
 use axfile::fops::File;
+use axhal::arch::TASK_UNMAPPED_BASE;
+use axhal::mem::{phys_to_virt, virt_to_phys};
+use axio::SeekFrom;
+use core::ops::Bound;
+use memory_addr::align_up_4k;
+use memory_addr::{align_down_4k, is_aligned_4k, PAGE_SHIFT, PAGE_SIZE_4K};
 pub use mm::FileRef;
+use mm::VmAreaStruct;
 
 /// Interpret addr exactly.
 pub const MAP_FIXED: usize = 0x10;
@@ -21,8 +21,12 @@ pub const MAP_FIXED: usize = 0x10;
 pub const MAP_ANONYMOUS: usize = 0x20;
 
 pub fn mmap(
-    va: usize, len: usize, prot: usize, flags: usize,
-    fd: usize, offset: usize
+    va: usize,
+    len: usize,
+    prot: usize,
+    flags: usize,
+    fd: usize,
+    offset: usize,
 ) -> LinuxResult<usize> {
     let current = task::current();
     let filetable = current.filetable.lock();
@@ -35,14 +39,18 @@ pub fn mmap(
 }
 
 pub fn _mmap(
-    mut va: usize, mut len: usize, _prot: usize, flags: usize,
-    file: Option<FileRef>, offset: usize
+    mut va: usize,
+    mut len: usize,
+    _prot: usize,
+    flags: usize,
+    file: Option<FileRef>,
+    offset: usize,
 ) -> LinuxResult<usize> {
     assert!(is_aligned_4k(va));
     len = align_up_4k(len);
     debug!("mmap va {:#X} offset {:#X}", va, offset);
-
     if (flags & MAP_FIXED) == 0 {
+        info!("test: va: {:#X} len: {:#X}", va, len);
         va = get_unmapped_vma(va, len);
         debug!("Get unmapped vma {:#X}", va);
     }
@@ -50,16 +58,21 @@ pub fn _mmap(
     let mm = task::current().mm();
     if let Some(mut overlap) = find_overlap(va, len, flags) {
         info!("find overlap {:#X}-{:#X}", overlap.vm_start, overlap.vm_end);
-        assert!(va >= overlap.vm_start && va+len <= overlap.vm_end,
+        assert!(
+            va >= overlap.vm_start && va + len <= overlap.vm_end,
             "{:#X}-{:#X}; overlap {:#X}-{:#X}",
-            va, va+len, overlap.vm_start, overlap.vm_end);
+            va,
+            va + len,
+            overlap.vm_start,
+            overlap.vm_end
+        );
 
         if va + len < overlap.vm_end {
             let bias = (va + len - overlap.vm_start) >> PAGE_SHIFT;
             let mut new = overlap.clone();
             new.vm_start = va + len;
             new.vm_pgoff += bias;
-            mm.lock().vmas.insert(va+len, new);
+            mm.lock().vmas.insert(va + len, new);
         }
         if va > overlap.vm_start {
             overlap.vm_end = va;
@@ -67,7 +80,12 @@ pub fn _mmap(
         }
     }
 
-    info!("mmap region: {:#X} - {:#X}, flags: {:#X}", va, va + len, flags);
+    info!(
+        "mmap region: {:#X} - {:#X}, flags: {:#X}",
+        va,
+        va + len,
+        flags
+    );
     let vma = VmAreaStruct::new(va, va + len, offset >> PAGE_SHIFT, file, flags);
     mm.lock().vmas.insert(va, vma);
 
@@ -75,13 +93,15 @@ pub fn _mmap(
 }
 
 fn find_overlap(va: usize, len: usize, flags: usize) -> Option<VmAreaStruct> {
-    info!("find_overlap: va {:#X} len {}, flags {:#X}", va, len, flags);
+    info!(
+        "find_overlap: va {:#X} len {:#X}, flags {:#X}",
+        va, len, flags
+    );
 
     let mm = task::current().mm();
     let locked_mm = mm.lock();
     let ret = locked_mm.vmas.iter().find(|(_, vma)| {
-        in_vma(va, va+len, vma) ||
-        in_range(vma.vm_start, vma.vm_end, va, va+len)
+        in_vma(va, va + len, vma) || in_range(vma.vm_start, vma.vm_end, va, va + len)
     });
 
     if let Some((key, _)) = ret {
@@ -107,14 +127,18 @@ pub fn get_unmapped_vma(_va: usize, len: usize) -> usize {
     let locked_mm = mm.lock();
     let mut gap_end = TASK_UNMAPPED_BASE;
     for (_, vma) in locked_mm.vmas.iter().rev() {
-        debug!("get_unmapped_vma iterator: {:#X} {:#X} {:#X}",
-            vma.vm_start, vma.vm_end, gap_end);
+        debug!(
+            "get_unmapped_vma iterator: {:#X} {:#X} {:#X}",
+            vma.vm_start, vma.vm_end, gap_end
+        );
         if vma.vm_end > gap_end {
             continue;
         }
         if gap_end - vma.vm_end >= len {
-            info!("get_unmapped_vma: {:#X} {:#X} {:#X}",
-                vma.vm_start, vma.vm_end, gap_end);
+            info!(
+                "get_unmapped_vma: {:#X} {:#X} {:#X}",
+                vma.vm_start, vma.vm_end, gap_end
+            );
             return gap_end - len;
         }
         gap_end = vma.vm_start;
@@ -127,7 +151,11 @@ pub fn faultin_page(va: usize) -> usize {
     let mm = task::current().mm();
     let locked_mm = mm.lock();
 
-    let vma = locked_mm.vmas.upper_bound(Bound::Included(&va)).value().unwrap();
+    let vma = locked_mm
+        .vmas
+        .upper_bound(Bound::Included(&va))
+        .value()
+        .unwrap();
     assert!(
         va >= vma.vm_start && va < vma.vm_end,
         "va {:#X} in {:#X} - {:#X}",
@@ -141,12 +169,11 @@ pub fn faultin_page(va: usize) -> usize {
     let offset = (vma.vm_pgoff << PAGE_SHIFT) + delta;
 
     let direct_va: usize = axalloc::global_allocator()
-        .alloc_pages(1, PAGE_SIZE_4K).unwrap();
+        .alloc_pages(1, PAGE_SIZE_4K)
+        .unwrap();
 
     // Todo: check whether we need to zero it.
-    let buf = unsafe {
-        core::slice::from_raw_parts_mut(direct_va as *mut u8, PAGE_SIZE_4K)
-    };
+    let buf = unsafe { core::slice::from_raw_parts_mut(direct_va as *mut u8, PAGE_SIZE_4K) };
     buf.fill(0);
 
     let pa = virt_to_phys(direct_va.into()).into();
@@ -194,7 +221,7 @@ pub fn set_brk(va: usize) -> usize {
         assert!(va > brk);
         let offset = va - brk;
         assert!(is_aligned_4k(offset));
-        _mmap(brk, offset, 0, MAP_FIXED|MAP_ANONYMOUS, None, 0).unwrap();
+        _mmap(brk, offset, 0, MAP_FIXED | MAP_ANONYMOUS, None, 0).unwrap();
         let _ = faultin_page(brk);
         mm.lock().set_brk(va);
         va
@@ -207,7 +234,11 @@ pub fn msync(va: usize, len: usize, flags: usize) -> usize {
     let mm = task::current().mm();
     let locked_mm = mm.lock();
 
-    let vma = locked_mm.vmas.upper_bound(Bound::Included(&va)).value().unwrap();
+    let vma = locked_mm
+        .vmas
+        .upper_bound(Bound::Included(&va))
+        .value()
+        .unwrap();
     assert!(
         va >= vma.vm_start && va + len <= vma.vm_end,
         "va {:#X} in {:#X} - {:#X}",
@@ -215,7 +246,7 @@ pub fn msync(va: usize, len: usize, flags: usize) -> usize {
         vma.vm_start,
         vma.vm_end
     );
-    info!("msync: {:#X} - {:#X}", va, va+len);
+    info!("msync: {:#X} - {:#X}", va, va + len);
 
     let delta = va - vma.vm_start;
     let offset = (vma.vm_pgoff << PAGE_SHIFT) + delta;
@@ -228,17 +259,13 @@ pub fn msync(va: usize, len: usize, flags: usize) -> usize {
 }
 
 fn sync_file(va: usize, len: usize, file: &mut File, offset: usize) {
-    let buf = unsafe {
-        core::slice::from_raw_parts(va as *const u8, len)
-    };
+    let buf = unsafe { core::slice::from_raw_parts(va as *const u8, len) };
 
     let _ = file.seek(SeekFrom::Start(offset as u64));
 
     let mut pos = 0;
     while pos < len {
-        axhal::arch::enable_sum();
         let ret = file.write(&buf[pos..]).unwrap();
-        axhal::arch::disable_sum();
         if ret == 0 {
             break;
         }

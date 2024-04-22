@@ -1,6 +1,8 @@
 use core::{arch::asm, fmt};
 use memory_addr::VirtAddr;
 
+use super::GdtStruct;
+
 /// Saved registers when a trap (interrupt or exception) occurs.
 #[allow(missing_docs)]
 #[repr(C)]
@@ -192,6 +194,14 @@ impl TaskContext {
             self.fs_base = super::read_thread_pointer();
             unsafe { super::write_thread_pointer(next_ctx.fs_base) };
         }
+        // To update the gs data and tss stack
+        // User mode will use these data
+        unsafe {
+            // change gs data
+            asm!("mov     gs:[offset __PERCPU_KERNEL_RSP_OFFSET], {kernel_sp}", 
+                kernel_sp = in(reg) next_ctx.kstack_top.as_usize() + core::mem::size_of::<TrapFrame>());
+        }
+        crate::platform::set_tss_stack_top(next_ctx.kstack_top + core::mem::size_of::<TrapFrame>());
         unsafe { context_switch(&mut self.rsp, &next_ctx.rsp) }
     }
 }
@@ -218,4 +228,12 @@ unsafe extern "C" fn context_switch(_current_stack: &mut u64, _next_stack: &u64)
         ret",
         options(noreturn),
     )
+}
+
+pub fn start_thread(regs: usize, pc: usize, sp: usize) {
+    let regs = unsafe { core::slice::from_raw_parts_mut(regs as *mut TrapFrame, 1) };
+    regs[0].cs = GdtStruct::UCODE64_SELECTOR.0 as _;
+    regs[0].ss = GdtStruct::UDATA_SELECTOR.0 as _;
+    regs[0].rip = pc as u64;
+    regs[0].rsp = sp as u64;
 }

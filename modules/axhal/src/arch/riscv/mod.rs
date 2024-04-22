@@ -3,15 +3,16 @@ mod macros;
 
 mod context;
 mod trap;
+pub use trap::ret_from_fork;
 
-use memory_addr::{PhysAddr, VirtAddr};
 use crate::mem::phys_to_virt;
-use riscv::asm;
-use riscv::register::{satp, sstatus, stvec};
 #[cfg(feature = "paging")]
 use crate::mem::PAGE_SIZE_4K;
+use memory_addr::{PhysAddr, VirtAddr};
+use riscv::asm;
+use riscv::register::{satp, sstatus, stvec};
 
-pub use self::context::{GeneralRegisters, TaskContext, TrapFrame, start_thread};
+pub use self::context::{start_thread, GeneralRegisters, TaskContext, TrapFrame};
 
 pub const TASK_SIZE: usize = 0x40_0000_0000;
 #[cfg(feature = "paging")]
@@ -34,14 +35,9 @@ pub const ELF_ET_DYN_BASE: usize = (TASK_SIZE / 3) * 2;
 pub const TASK_UNMAPPED_BASE: usize = (TASK_SIZE / 3) & !(PAGE_SIZE_4K - 1);
 
 /// Status register flags
-pub const SR_SPIE:      usize = 0x00000020;  /* Previous Supervisor IE */
-pub const SR_FS_INITIAL:usize = 0x00002000;
-pub const SR_UXL_64:    usize = 0x200000000; /* XLEN = 64 for U-mode */
-
-#[inline]
-pub fn enable_sum() {
-    unsafe { sstatus::set_sum() }
-}
+pub const SR_SPIE: usize = 0x00000020; /* Previous Supervisor IE */
+pub const SR_FS_INITIAL: usize = 0x00002000;
+pub const SR_UXL_64: usize = 0x200000000; /* XLEN = 64 for U-mode */
 
 #[inline]
 pub fn disable_sum() {
@@ -104,16 +100,6 @@ pub unsafe fn write_page_table_root(root_paddr: PhysAddr) {
 }
 pub unsafe fn write_page_table_root0(root_paddr: PhysAddr) {
     write_page_table_root(root_paddr)
-}
-
-#[cfg(feature = "paging")]
-pub fn sync_kernel_mappings(src_paddr: PhysAddr, dst_paddr: PhysAddr) {
-    let dst_ptr = phys_to_virt(dst_paddr).as_mut_ptr();
-    let src_ptr = phys_to_virt(src_paddr).as_ptr();
-    unsafe {
-        core::ptr::copy_nonoverlapping(src_ptr.wrapping_add(PAGE_SIZE_4K/2), dst_ptr.wrapping_add(PAGE_SIZE_4K/2), PAGE_SIZE_4K/2);
-        info!("CLONE: from {:#X} => {:#X}", src_ptr as usize, dst_ptr as usize);
-    }
 }
 
 /// Flushes the TLB.

@@ -18,6 +18,7 @@ mkboot = { path = "../mkboot" }
 axhal = { path = "../axhal" }
 axconfig = { path = "../axconfig" }
 axalloc = { path = "../axalloc", optional = true }
+early_console = { path = "../../crates/early_console" }
 
 [target.'cfg(target_arch = "x86_64")'.dependencies]
 x86 = "0.52"

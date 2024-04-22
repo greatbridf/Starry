@@ -7,7 +7,7 @@ use axconfig::TASK_STACK_SIZE;
 #[macro_use]
 extern crate log;
 
-const RLIMIT_STACK: usize = 3;  /* max stack size */
+const RLIMIT_STACK: usize = 3; /* max stack size */
 //const RLIM_NLIMITS: usize = 16;
 
 #[allow(dead_code)]
@@ -18,10 +18,7 @@ struct RLimit64 {
 
 impl RLimit64 {
     pub fn new(rlim_cur: u64, rlim_max: u64) -> Self {
-        Self {
-            rlim_cur,
-            rlim_max,
-        }
+        Self { rlim_cur, rlim_max }
     }
 }
 
@@ -38,14 +35,11 @@ pub fn getgid() -> usize {
     0
 }
 
-pub fn prlimit64(
-    pid: Pid,
-    resource: usize,
-    new_rlim: usize,
-    old_rlim: usize
-) -> usize {
-    warn!("linux_syscall_prlimit64: pid {}, resource: {}, {:?} {:?}",
-        pid, resource, new_rlim, old_rlim);
+pub fn prlimit64(pid: Pid, resource: usize, new_rlim: usize, old_rlim: usize) -> usize {
+    warn!(
+        "linux_syscall_prlimit64: pid {}, resource: {}, {:?} {:?}",
+        pid, resource, new_rlim, old_rlim
+    );
 
     assert!(pid == 0);
 
@@ -54,13 +48,11 @@ pub fn prlimit64(
     match resource {
         RLIMIT_STACK => {
             let stack_size = TASK_STACK_SIZE as u64;
-            axhal::arch::enable_sum();
             unsafe {
                 *old_rlim = RLimit64::new(stack_size, stack_size);
             }
-            axhal::arch::disable_sum();
             0
-        },
+        }
         _ => {
             unimplemented!("Resource Type: {}", resource);
         }

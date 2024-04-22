@@ -1,46 +1,51 @@
-use x86::{controlregs::cr2, irq::*};
+use memory_addr::VirtAddr;
+use x86_64::registers::model_specific::KernelGsBase;
 
-use super::context::TrapFrame;
-
-core::arch::global_asm!(include_str!("trap.S"));
-
-const IRQ_VECTOR_START: u8 = 0x20;
-const IRQ_VECTOR_END: u8 = 0xff;
+use super::TrapFrame;
 
 #[no_mangle]
-fn x86_trap_handler(tf: &TrapFrame) {
-    match tf.vector as u8 {
-        PAGE_FAULT_VECTOR => {
-            if tf.is_user() {
-                warn!(
-                    "User #PF @ {:#x}, fault_vaddr={:#x}, error_code={:#x}",
-                    tf.rip,
-                    unsafe { cr2() },
-                    tf.error_code,
-                );
-            } else {
-                panic!(
-                    "Kernel #PF @ {:#x}, fault_vaddr={:#x}, error_code={:#x}:\n{:#x?}",
-                    tf.rip,
-                    unsafe { cr2() },
-                    tf.error_code,
-                    tf,
-                );
-            }
-        }
-        BREAKPOINT_VECTOR => debug!("#BP @ {:#x} ", tf.rip),
-        GENERAL_PROTECTION_FAULT_VECTOR => {
-            panic!(
-                "#GP @ {:#x}, error_code={:#x}:\n{:#x?}",
-                tf.rip, tf.error_code, tf
-            );
-        }
-        IRQ_VECTOR_START..=IRQ_VECTOR_END => crate::trap::handle_irq_extern(tf.vector as _),
-        _ => {
-            panic!(
-                "Unhandled exception {} (error_code = {:#x}) @ {:#x}:\n{:#x?}",
-                tf.vector, tf.error_code, tf.rip, tf
-            );
-        }
-    }
+#[percpu2::def_percpu]
+static USER_RSP_OFFSET: usize = 0;
+
+#[no_mangle]
+#[percpu2::def_percpu]
+static KERNEL_RSP_OFFSET: usize = 0;
+
+pub fn ret_from_fork(kstack_sp: usize) {
+    // The kstack has pushed the trap frame, so the kstack sp is the top of the trap frame.
+    KernelGsBase::write(x86_64::VirtAddr::new(0));
+    let trap_frame_size = core::mem::size_of::<TrapFrame>();
+    let kstack_base = kstack_sp + trap_frame_size;
+    crate::platform::set_tss_stack_top(VirtAddr::from(kstack_base));
+    unsafe {
+        core::arch::asm!(
+            r"
+                    mov     gs:[offset __PERCPU_KERNEL_RSP_OFFSET], {kstack_base}
+
+                    mov      rsp, {kstack_sp}
+
+                    pop rax
+                    pop rcx
+                    pop rdx
+                    pop rbx
+                    pop rbp
+                    pop rsi
+                    pop rdi
+                    pop r8
+                    pop r9
+                    pop r10
+                    pop r11
+                    pop r12
+                    pop r13
+                    pop r14
+                    pop r15
+                    add rsp, 16
+
+                    swapgs
+                    iretq
+                ",
+            kstack_sp = in(reg) kstack_sp,
+            kstack_base = in(reg) kstack_base,
+        );
+    };
 }

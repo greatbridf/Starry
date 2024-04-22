@@ -7,7 +7,7 @@ use aarch64_cpu::registers::{DAIF, TPIDR_EL0, TTBR0_EL1, TTBR1_EL1, VBAR_EL1};
 use memory_addr::{PhysAddr, VirtAddr};
 use tock_registers::interfaces::{Readable, Writeable};
 
-pub use self::context::{FpState, TaskContext, TrapFrame, start_thread};
+pub use self::context::{start_thread, FpState, TaskContext, TrapFrame};
 use crate::mem::PAGE_SIZE_4K;
 pub use trap::syscall;
 
@@ -30,17 +30,9 @@ pub const ELF_ET_DYN_BASE: usize = (TASK_SIZE / 3) * 2;
 pub const TASK_UNMAPPED_BASE: usize = (TASK_SIZE / 3) & !(PAGE_SIZE_4K - 1);
 
 /// Status register flags
-pub const SR_SPIE:      usize = 0x00000020;  /* Previous Supervisor IE */
-pub const SR_FS_INITIAL:usize = 0x00002000;
-pub const SR_UXL_64:    usize = 0x200000000; /* XLEN = 64 for U-mode */
-
-#[inline]
-pub fn enable_sum() {
-}
-
-#[inline]
-pub fn disable_sum() {
-}
+pub const SR_SPIE: usize = 0x00000020; /* Previous Supervisor IE */
+pub const SR_FS_INITIAL: usize = 0x00002000;
+pub const SR_UXL_64: usize = 0x200000000; /* XLEN = 64 for U-mode */
 
 /// Allows the current CPU to respond to interrupts.
 #[inline]
@@ -171,5 +163,4 @@ pub unsafe fn write_thread_pointer(tpidr_el0: usize) {
     TPIDR_EL0.set(tpidr_el0 as _)
 }
 
-pub fn sync_kernel_mappings(_src: PhysAddr, _dst: PhysAddr) {
-}
+pub fn sync_kernel_mappings(_src: PhysAddr, _dst: PhysAddr) {}

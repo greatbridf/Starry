@@ -11,3 +11,4 @@ bitflags = "2.2"
 task = { path = "../task" }
 run_queue = { path = "../run_queue", features = ["sched_cfs"] }
 axerrno = { path = "../../crates/axerrno" }
+axhal = { path = "../../modules/axhal" }

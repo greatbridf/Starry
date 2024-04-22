@@ -34,7 +34,7 @@
 #[macro_use]
 extern crate log;
 
-mod platform;
+pub mod platform;
 
 pub mod arch;
 pub mod cpu;
@@ -45,27 +45,26 @@ pub mod trap;
 #[cfg(feature = "tls")]
 pub mod tls;
 
-#[cfg(feature = "irq")]
-pub mod irq;
+// #[cfg(feature = "irq")]
+// pub mod irq;
 
 #[cfg(feature = "paging")]
 pub mod paging;
 
-/// Console input and output.
+// replace it with early_console
+// /// Console input and output.
 pub mod console {
-    pub use super::platform::console::*;
-
-    /// Write a slice of bytes to the console.
-    pub fn write_bytes(bytes: &[u8]) {
-        for c in bytes {
-            putchar(*c);
-        }
-    }
+    pub use early_console::*;
 }
 
 /// Miscellaneous operation, e.g. terminate the system.
 pub mod misc {
     pub use super::platform::misc::*;
+}
+
+#[cfg(target_arch = "x86_64")]
+pub mod x86_64 {
+    pub use super::platform::*;
 }
 
 /// Multi-core operations.

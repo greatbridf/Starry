@@ -5,6 +5,10 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+irq = ["axhal/irq"]
+default = ["irq"]
+
 [dependencies]
 log = "0.4"
 cfg-if = "1.0"
@@ -15,8 +19,13 @@ kernel_guard = { path = "../../crates/kernel_guard" }
 handler_table = { path = "../../crates/handler_table" }
 lazy_init = { path = "../../crates/lazy_init" }
 
+
 [target.'cfg(any(target_arch = "riscv32", target_arch = "riscv64"))'.dependencies]
 riscv = "0.10"
+
+[target.'cfg(target_arch = "x86_64")'.dependencies]
+x86 = "0.52"
+x86_64 = "0.14"
 
 [build-dependencies]
 axconfig = { path = "../axconfig" }

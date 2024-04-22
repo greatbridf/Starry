@@ -9,24 +9,23 @@ use core::str::from_utf8;
 use core::{mem::align_of, mem::size_of_val, ptr::null};
 
 use axerrno::LinuxResult;
-use memory_addr::{align_down_4k, align_up_4k, PAGE_SIZE_4K};
 use axfile::fops::File;
 use axfile::fops::OpenOptions;
-use elf::segment::ProgramHeader;
-use elf::abi::{PT_LOAD, PT_INTERP};
-use elf::endian::AnyEndian;
-use elf::ElfBytes;
-use elf::segment::SegmentTable;
-use elf::parse::ParseAt;
-use axio::SeekFrom;
-use mutex::Mutex;
-use mmap::FileRef;
 use axhal::arch::start_thread;
-use axhal::arch::{TASK_SIZE, ELF_ET_DYN_BASE};
-use mmap::{MAP_FIXED, MAP_ANONYMOUS};
 use axhal::arch::STACK_SIZE;
-use axhal::arch::{enable_sum, disable_sum};
+use axhal::arch::{ELF_ET_DYN_BASE, TASK_SIZE};
+use axio::SeekFrom;
+use elf::abi::{PT_INTERP, PT_LOAD};
+use elf::endian::AnyEndian;
+use elf::parse::ParseAt;
+use elf::segment::ProgramHeader;
+use elf::segment::SegmentTable;
+use elf::ElfBytes;
 use kernel_guard::NoPreempt;
+use memory_addr::{align_down_4k, align_up_4k, PAGE_SIZE_4K};
+use mmap::FileRef;
+use mmap::{MAP_ANONYMOUS, MAP_FIXED};
+use mutex::Mutex;
 
 const ELF_HEAD_BUF_SIZE: usize = 256;
 
@@ -40,14 +39,15 @@ pub fn kernel_execve(filename: &str) -> LinuxResult {
     }
 
     // TODO: Move it into kernel_init().
-    setup_zero_page()?;
+    // setup_zero_page()?;
 
     bprm_execve(filename, 0, 0)
 }
 
+#[allow(unused)]
 fn setup_zero_page() -> LinuxResult {
     error!("setup_zero_page ...");
-    mmap::_mmap(0x0, PAGE_SIZE_4K, 0, MAP_FIXED|MAP_ANONYMOUS, None, 0)?;
+    mmap::_mmap(0x0, PAGE_SIZE_4K, 0, MAP_FIXED | MAP_ANONYMOUS, None, 0)?;
     Ok(())
 }
 
@@ -77,13 +77,8 @@ impl UserStack {
         self.sp -= size_of_val(data);
         self.sp -= self.sp % align_of::<T>();
         self.ptr -= origin - self.sp;
-        unsafe {
-            core::slice::from_raw_parts_mut(
-                self.ptr as *mut T,
-                data.len(),
-            )
-        }
-        .copy_from_slice(data);
+        unsafe { core::slice::from_raw_parts_mut(self.ptr as *mut T, data.len()) }
+            .copy_from_slice(data);
     }
     pub fn push_str(&mut self, str: &str) -> usize {
         self.push(&[b'\0']);
@@ -123,19 +118,16 @@ fn get_arg_page(_entry: usize, args: &[&str]) -> LinuxResult<usize> {
     //let auxv = get_auxv_vector(entry);
 
     let va = TASK_SIZE - STACK_SIZE;
-    mmap::_mmap(va, STACK_SIZE, 0, MAP_FIXED|MAP_ANONYMOUS, None, 0)?;
+    mmap::_mmap(va, STACK_SIZE, 0, MAP_FIXED | MAP_ANONYMOUS, None, 0)?;
     let direct_va = mmap::faultin_page(TASK_SIZE - PAGE_SIZE_4K);
-    let mut stack = UserStack::new(TASK_SIZE, direct_va+PAGE_SIZE_4K);
+    let mut stack = UserStack::new(TASK_SIZE, direct_va + PAGE_SIZE_4K);
     stack.push(&[null::<u64>()]);
 
     let random_str: &[usize; 2] = &[3703830112808742751usize, 7081108068768079778usize];
     stack.push(random_str.as_slice());
     //let random_str_pos = stack.get_sp();
 
-    let argv_slice: Vec<_> = args
-        .iter()
-        .map(|arg| stack.push_str(arg))
-        .collect();
+    let argv_slice: Vec<_> = args.iter().map(|arg| stack.push_str(arg)).collect();
 
     stack.push(&[null::<u8>(), null::<u8>()]);
     /*
@@ -161,9 +153,7 @@ fn get_arg_page(_entry: usize, args: &[&str]) -> LinuxResult<usize> {
 }
 
 /// sys_execve() executes a new program.
-fn bprm_execve(
-    filename: &str, flags: usize, load_bias: usize
-) -> LinuxResult {
+fn bprm_execve(filename: &str, flags: usize, load_bias: usize) -> LinuxResult {
     let file = do_open_execat(filename, flags)?;
     exec_binprm(file, load_bias, filename)
 }
@@ -183,8 +173,11 @@ fn exec_binprm(file: FileRef, load_bias: usize, filename: &str) -> LinuxResult {
 }
 
 fn load_elf_interp(
-    file: FileRef, load_bias: usize, app_entry: usize,
-    interp_name: &str, bin_name: &str,
+    file: FileRef,
+    load_bias: usize,
+    app_entry: usize,
+    interp_name: &str,
+    bin_name: &str,
 ) -> LinuxResult {
     let (phdrs, entry) = load_elf_phdrs(file.clone())?;
 
@@ -193,12 +186,21 @@ fn load_elf_interp(
 
     error!("There are {} PT_LOAD segments", phdrs.len());
     for phdr in &phdrs {
-        error!("phdr: offset: {:#X}=>{:#X} size: {:#X}=>{:#X}",
-            phdr.p_offset, phdr.p_vaddr, phdr.p_filesz, phdr.p_memsz);
+        error!(
+            "phdr: offset: {:#X}=>{:#X} size: {:#X}=>{:#X}",
+            phdr.p_offset, phdr.p_vaddr, phdr.p_filesz, phdr.p_memsz
+        );
 
         let va = align_down_4k(phdr.p_vaddr as usize);
         let va_end = align_up_4k((phdr.p_vaddr + phdr.p_filesz) as usize);
-        mmap::_mmap(va + load_bias, va_end - va, 0, MAP_FIXED, Some(file.clone()), phdr.p_offset as usize)?;
+        mmap::_mmap(
+            va + load_bias,
+            va_end - va,
+            0,
+            MAP_FIXED,
+            Some(file.clone()),
+            phdr.p_offset as usize,
+        )?;
 
         let pos = (phdr.p_vaddr + phdr.p_filesz) as usize;
         if elf_bss < pos {
@@ -233,8 +235,10 @@ fn load_elf_binary(file: FileRef, load_bias: usize, filename: &str) -> LinuxResu
 
     for phdr in &phdrs {
         if phdr.p_type == PT_INTERP {
-            error!("Interp: phdr: offset: {:#X}=>{:#X} size: {:#X}=>{:#X}",
-                phdr.p_offset, phdr.p_vaddr, phdr.p_filesz, phdr.p_memsz);
+            error!(
+                "Interp: phdr: offset: {:#X}=>{:#X} size: {:#X}=>{:#X}",
+                phdr.p_offset, phdr.p_vaddr, phdr.p_filesz, phdr.p_memsz
+            );
             let mut path: [u8; 256] = [0; 256];
             let _ = file.lock().seek(SeekFrom::Start(phdr.p_offset as u64));
             let ret = file.lock().read(&mut path).unwrap();
@@ -254,12 +258,21 @@ fn load_elf_binary(file: FileRef, load_bias: usize, filename: &str) -> LinuxResu
 
     error!("There are {} PT_LOAD segments", phdrs.len());
     for phdr in &phdrs {
-        error!("phdr: offset: {:#X}=>{:#X} size: {:#X}=>{:#X}",
-            phdr.p_offset, phdr.p_vaddr, phdr.p_filesz, phdr.p_memsz);
+        error!(
+            "phdr: offset: {:#X}=>{:#X} size: {:#X}=>{:#X}",
+            phdr.p_offset, phdr.p_vaddr, phdr.p_filesz, phdr.p_memsz
+        );
 
         let va = align_down_4k(phdr.p_vaddr as usize);
         let va_end = align_up_4k((phdr.p_vaddr + phdr.p_filesz) as usize);
-        mmap::_mmap(va + load_bias, va_end - va, 0, MAP_FIXED, Some(file.clone()), phdr.p_offset as usize)?;
+        mmap::_mmap(
+            va + load_bias,
+            va_end - va,
+            0,
+            MAP_FIXED,
+            Some(file.clone()),
+            phdr.p_offset as usize,
+        )?;
 
         let pos = (phdr.p_vaddr + phdr.p_filesz) as usize;
         if elf_bss < pos {
@@ -293,13 +306,7 @@ fn padzero(elf_bss: usize) {
     error!("padzero nbyte: {:#X} ...", elf_bss);
     if nbyte != 0 {
         let nbyte = PAGE_SIZE_4K - nbyte;
-        enable_sum();
-        unsafe {
-            core::slice::from_raw_parts_mut(
-                elf_bss as *mut u8, nbyte
-            )
-        }.fill(0);
-        disable_sum();
+        unsafe { core::slice::from_raw_parts_mut(elf_bss as *mut u8, nbyte) }.fill(0);
         error!("padzero nbyte: {:#X} {:#X}", elf_bss, nbyte);
     }
 }
@@ -309,7 +316,15 @@ fn set_brk(elf_bss: usize, elf_brk: usize) {
     let elf_brk = align_up_4k(elf_brk);
     if elf_bss < elf_brk {
         error!("{:#X} < {:#X}", elf_bss, elf_brk);
-        mmap::_mmap(elf_bss, elf_brk - elf_bss, 0, MAP_FIXED|MAP_ANONYMOUS, None, 0).unwrap();
+        mmap::_mmap(
+            elf_bss,
+            elf_brk - elf_bss,
+            0,
+            MAP_FIXED | MAP_ANONYMOUS,
+            None,
+            0,
+        )
+        .unwrap();
     }
 
     task::current().mm().lock().set_brk(elf_brk as usize)
@@ -330,7 +345,7 @@ fn load_elf_phdrs(file: FileRef) -> LinuxResult<(Vec<ProgramHeader>, usize)> {
     assert!(size > 0 && size <= PAGE_SIZE_4K);
     let phoff = ehdr.e_phoff;
     //let mut buf: [u8; PAGE_SIZE_4K] = [0; PAGE_SIZE_4K];
-    let mut buf: [u8; 2*1024] = [0; 2*1024];
+    let mut buf: [u8; 2 * 1024] = [0; 2 * 1024];
     error!("phoff: {:#X}", ehdr.e_phoff);
     let _ = file.seek(SeekFrom::Start(phoff));
     file.read(&mut buf)?;
@@ -338,7 +353,7 @@ fn load_elf_phdrs(file: FileRef) -> LinuxResult<(Vec<ProgramHeader>, usize)> {
 
     let phdrs: Vec<ProgramHeader> = phdrs
         .iter()
-        .filter(|phdr|{phdr.p_type == PT_LOAD || phdr.p_type == PT_INTERP})
+        .filter(|phdr| phdr.p_type == PT_LOAD || phdr.p_type == PT_INTERP)
         .collect();
     Ok((phdrs, ehdr.e_entry as usize))
 }

@@ -32,7 +32,7 @@ axfeat = { path = "../axfeat" }
 axruntime = { path = "../../modules/axruntime", optional = true }
 arch_boot = { path = "../../modules/arch_boot", optional = true }
 axconfig = { path = "../../modules/axconfig" }
-axlog = { path = "../../modules/axlog" }
+axlog2 = { path = "../../modules/axlog2" }
 axio = { path = "../../crates/axio" }
 axerrno = { path = "../../crates/axerrno" }
 axhal = { path = "../../modules/axhal" }

@@ -1,6 +1,6 @@
+use alloc::sync::Arc;
 use lazy_init::LazyInit;
 use scheduler::BaseScheduler;
-use alloc::sync::Arc;
 use taskctx::switch_mm;
 use taskctx::TaskState;
 /*
@@ -8,9 +8,9 @@ use alloc::collections::VecDeque;
 
 use crate::{AxTaskRef, Scheduler, TaskInner, WaitQueue};
 */
+use core::sync::atomic::Ordering;
 use spinbase::SpinNoIrq;
 use taskctx::{CtxRef, CurrentCtx};
-use core::sync::atomic::Ordering;
 
 type SchedItem = scheduler::CFSTask<CtxRef>;
 type Scheduler = scheduler::CFScheduler<CtxRef>;
@@ -51,14 +51,15 @@ impl AxRunQueue {
 
     pub fn scheduler_timer_tick(&mut self) {
         let curr = taskctx::current_ctx();
-        if self.scheduler.task_tick(
-            &Arc::new(SchedItem::new(curr.as_task_ref().clone()))
-        ) {
+        if self
+            .scheduler
+            .task_tick(&Arc::new(SchedItem::new(curr.as_task_ref().clone())))
+        {
             curr.set_preempt_pending(true);
         }
     }
 
-/*
+    /*
     pub fn yield_current(&mut self) {
         let curr = crate::current();
         trace!("task yield: {}", curr.id_name());
@@ -168,17 +169,14 @@ impl AxRunQueue {
     /// slice, otherwise reset it.
     pub fn resched(&mut self, preempt: bool) {
         let prev = taskctx::current_ctx();
-        self.scheduler.put_prev_task(Arc::new(SchedItem::new(prev.clone())), preempt);
+        self.scheduler
+            .put_prev_task(Arc::new(SchedItem::new(prev.clone())), preempt);
         let next = self.scheduler.pick_next_task().unwrap();
         self.switch_to(prev, next.inner().clone());
     }
 
     fn switch_to(&mut self, prev_task: CurrentCtx, next_task: CtxRef) {
-        trace!(
-            "context switch: {} -> {}",
-            prev_task.pid(),
-            next_task.pid()
-        );
+        info!("context switch: {} -> {}", prev_task.pid(), next_task.pid());
         next_task.set_preempt_pending(false);
         next_task.set_state(TaskState::Running);
         if prev_task.ptr_eq(&next_task) {
@@ -195,17 +193,19 @@ impl AxRunQueue {
                 switch_mm(
                     prev_task.active_mm_id.load(Ordering::SeqCst),
                     next_task.mm_id.load(Ordering::SeqCst),
-                    next_pgd.clone()
+                    next_pgd.clone(),
                 );
-            },
+            }
             None => {
-                error!("###### {} {};",
-                   prev_task.active_mm_id.load(Ordering::SeqCst),
-                   next_task.active_mm_id.load(Ordering::SeqCst));
+                error!(
+                    "###### {} {};",
+                    prev_task.active_mm_id.load(Ordering::SeqCst),
+                    next_task.active_mm_id.load(Ordering::SeqCst)
+                );
 
                 next_task.active_mm_id.store(
                     prev_task.active_mm_id.load(Ordering::SeqCst),
-                    Ordering::SeqCst
+                    Ordering::SeqCst,
                 );
             }
         }

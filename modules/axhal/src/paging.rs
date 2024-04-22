@@ -4,7 +4,7 @@ use axalloc::global_allocator;
 use core::cell::OnceCell;
 use page_table::PagingIf;
 
-use crate::arch::{sync_kernel_mappings, write_page_table_root};
+use crate::arch::write_page_table_root;
 use crate::mem::{phys_to_virt, virt_to_phys, MemRegionFlags, PhysAddr, VirtAddr, PAGE_SIZE_4K};
 
 #[doc(no_inline)]
@@ -84,6 +84,23 @@ pub fn reuse_page_table_root() {
     unsafe {
         assert!(KERNEL_PAGE_TABLE.get().is_some());
         write_page_table_root(kernel_pg_root_paddr());
+    }
+}
+
+#[cfg(feature = "paging")]
+fn sync_kernel_mappings(src_paddr: PhysAddr, dst_paddr: PhysAddr) {
+    let dst_ptr = phys_to_virt(dst_paddr).as_mut_ptr();
+    let src_ptr = phys_to_virt(src_paddr).as_ptr();
+    unsafe {
+        core::ptr::copy_nonoverlapping(
+            src_ptr.wrapping_add(PAGE_SIZE_4K / 2),
+            dst_ptr.wrapping_add(PAGE_SIZE_4K / 2),
+            PAGE_SIZE_4K / 2,
+        );
+        info!(
+            "CLONE: from {:#X} => {:#X}",
+            src_ptr as usize, dst_ptr as usize
+        );
     }
 }
 

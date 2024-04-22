@@ -4,15 +4,15 @@
 extern crate log;
 
 extern crate alloc;
-use alloc::sync::Arc;
 use alloc::string::String;
+use alloc::sync::Arc;
 
+use axerrno::AxResult;
 use axerrno::LinuxError;
+use axfile::api::create_dir;
 use axfile::fops::File;
 use axfile::fops::OpenOptions;
-use axfile::api::create_dir;
 use mutex::Mutex;
-use axerrno::AxResult;
 
 // Special value used to indicate openat should use
 // the current working directory.
@@ -22,8 +22,10 @@ pub const AT_EMPTY_PATH: usize = 0x1000;
 const O_CREAT: usize = 0o100;
 
 pub fn openat(dfd: usize, filename: &str, flags: usize, mode: usize) -> AxResult<File> {
-    info!("openat '{}' at dfd {:#X} flags {:#X} mode {:#X}",
-        filename, dfd, flags, mode);
+    info!(
+        "openat '{}' at dfd {:#X} flags {:#X} mode {:#X}",
+        filename, dfd, flags, mode
+    );
 
     let mut opts = OpenOptions::new();
     opts.read(true);
@@ -46,7 +48,7 @@ pub fn register_file(file: AxResult<File>) -> usize {
         Ok(f) => f,
         Err(e) => {
             return (-LinuxError::from(e).code()) as usize;
-        },
+        }
     };
     let current = task::current();
     let fd = current.filetable.lock().insert(Arc::new(Mutex::new(file)));
@@ -81,11 +83,12 @@ pub fn read(fd: usize, ubuf: &mut [u8]) -> usize {
         pos += ret;
     }
 
-    info!("linux_syscall_read: fd {}, count {}, ret {}", fd, count, pos);
+    info!(
+        "linux_syscall_read: fd {}, count {}, ret {}",
+        fd, count, pos
+    );
 
-    axhal::arch::enable_sum();
     ubuf.copy_from_slice(&kbuf[..count]);
-    axhal::arch::disable_sum();
     pos
 }
 
@@ -99,7 +102,6 @@ pub fn write(fd: usize, ubuf: &[u8]) -> usize {
     let file = current.filetable.lock().get_file(fd).unwrap();
     let mut pos = 0;
     assert!(count < 1024);
-    axhal::arch::enable_sum();
     while pos < count {
         let ret = file.lock().write(&ubuf[pos..]).unwrap();
         if ret == 0 {
@@ -107,15 +109,12 @@ pub fn write(fd: usize, ubuf: &[u8]) -> usize {
         }
         pos += ret;
     }
-    axhal::arch::disable_sum();
     info!("write: fd {}, count {}, ret {}", fd, count, pos);
     pos
 }
 
 fn write_to_stdio(ubuf: &[u8]) -> usize {
-    axhal::arch::enable_sum();
     axhal::console::write_bytes(ubuf);
-    axhal::arch::disable_sum();
     ubuf.len()
 }
 
@@ -128,14 +127,12 @@ pub struct iovec {
 
 pub fn writev(fd: usize, iov_array: &[iovec]) -> usize {
     assert!(fd == 1 || fd == 2);
-    axhal::arch::enable_sum();
     for iov in iov_array {
         debug!("iov: {:#X} {:#X}", iov.iov_base, iov.iov_len);
         let bytes = unsafe { core::slice::from_raw_parts(iov.iov_base as *const _, iov.iov_len) };
         let s = String::from_utf8(bytes.into());
         error!("{}", s.unwrap());
     }
-    axhal::arch::disable_sum();
     iov_array.len()
 }
 
@@ -175,12 +172,10 @@ pub fn fstatat(dfd: usize, path: usize, statbuf_ptr: usize, flags: usize) -> usi
         let path = get_user_str(path);
         warn!("!!! NON-EMPTY for path: {}\n", path);
         match openat(dfd, &path, flags, 0) {
-            Ok(file) => {
-                file.get_attr().unwrap()
-            },
+            Ok(file) => file.get_attr().unwrap(),
             Err(e) => {
                 return (-LinuxError::from(e).code()) as usize;
-            },
+            }
         }
     } else {
         let current = task::current();
@@ -189,7 +184,7 @@ pub fn fstatat(dfd: usize, path: usize, statbuf_ptr: usize, flags: usize) -> usi
             Some(f) => f,
             None => {
                 return (-2isize) as usize;
-            },
+            }
         };
         let locked_file = file.lock();
         locked_file.get_attr().unwrap()
@@ -201,7 +196,6 @@ pub fn fstatat(dfd: usize, path: usize, statbuf_ptr: usize, flags: usize) -> usi
     let st_size = metadata.size();
     error!("st_size: {}", st_size);
 
-    axhal::arch::enable_sum();
     unsafe {
         *statbuf = KernelStat {
             st_ino: 1,
@@ -215,13 +209,11 @@ pub fn fstatat(dfd: usize, path: usize, statbuf_ptr: usize, flags: usize) -> usi
             ..Default::default()
         };
     }
-    axhal::arch::disable_sum();
     0
 }
 
 fn fstatat_stdio(_dfd: usize, _path: usize, statbuf: *mut KernelStat, _flags: usize) -> usize {
     // Todo: Handle stdin(0), stdout(1) and stderr(2)
-    axhal::arch::enable_sum();
     unsafe {
         *statbuf = KernelStat {
             st_mode: 0x2180,
@@ -237,7 +229,6 @@ fn fstatat_stdio(_dfd: usize, _path: usize, statbuf: *mut KernelStat, _flags: us
             ..Default::default()
         };
     }
-    axhal::arch::disable_sum();
     return 0;
 }
 
@@ -249,29 +240,29 @@ const NCCS: usize = 19;
 #[derive(Debug, Clone, Copy, Default)]
 #[repr(C)]
 struct Termios {
-    c_iflag: u32,   /* input mode flags */
-    c_oflag: u32,   /* output mode flags */
-    c_cflag: u32,   /* control mode flags */
-    c_lflag: u32,   /* local mode flags */
-    c_line:  u8,    /* line discipline */
-    c_cc:    [u8; NCCS], /* control characters */
+    c_iflag: u32,     /* input mode flags */
+    c_oflag: u32,     /* output mode flags */
+    c_cflag: u32,     /* control mode flags */
+    c_lflag: u32,     /* local mode flags */
+    c_line: u8,       /* line discipline */
+    c_cc: [u8; NCCS], /* control characters */
 }
 
 pub fn ioctl(fd: usize, request: usize, udata: usize) -> usize {
-    info!("linux_syscall_ioctl fd {}, request {:#X}, udata {:#X}",
-        fd, request, udata);
+    info!(
+        "linux_syscall_ioctl fd {}, request {:#X}, udata {:#X}",
+        fd, request, udata
+    );
 
     assert_eq!(fd, 1);
     assert_eq!(request, TCGETS);
 
     let cc: [u8; NCCS] = [
-        0x3, 0x1c, 0x7f, 0x15, 0x4, 0x0, 0x1, 0x0,
-        0x11, 0x13, 0x1a, 0x0, 0x12, 0xf, 0x17, 0x16,
+        0x3, 0x1c, 0x7f, 0x15, 0x4, 0x0, 0x1, 0x0, 0x11, 0x13, 0x1a, 0x0, 0x12, 0xf, 0x17, 0x16,
         0x0, 0x0, 0x0,
     ];
 
     let ubuf = udata as *mut Termios;
-    axhal::arch::enable_sum();
     unsafe {
         *ubuf = Termios {
             c_iflag: 0x500,
@@ -282,21 +273,21 @@ pub fn ioctl(fd: usize, request: usize, udata: usize) -> usize {
             c_cc: cc,
         };
     }
-    axhal::arch::disable_sum();
     0
 }
 
 pub fn mkdirat(dfd: usize, pathname: &str, mode: usize) -> usize {
-    info!("mkdirat: dfd {:#X}, pathname {}, mode {:#X}", dfd, pathname, mode);
+    info!(
+        "mkdirat: dfd {:#X}, pathname {}, mode {:#X}",
+        dfd, pathname, mode
+    );
     assert_eq!(dfd, AT_FDCWD);
 
     let current = task::current();
     let fs = current.fs.lock();
     match create_dir(pathname, &fs) {
         Ok(()) => 0,
-        Err(e) => {
-            (-LinuxError::from(e).code()) as usize
-        },
+        Err(e) => (-LinuxError::from(e).code()) as usize,
     }
 }
 
@@ -305,10 +296,8 @@ pub fn getcwd(buf: &mut [u8]) -> usize {
     info!("getcwd {}", cwd);
     let bytes = cwd.as_bytes();
     let count = bytes.len();
-    axhal::arch::enable_sum();
     buf[0..count].copy_from_slice(bytes);
     buf[count] = 0u8;
-    axhal::arch::disable_sum();
     count + 1
 }
 
@@ -323,18 +312,14 @@ pub fn chdir(path: &str) -> usize {
     let mut fs = current.fs.lock();
     match fs.set_current_dir(path) {
         Ok(()) => 0,
-        Err(e) => {
-            (-LinuxError::from(e).code()) as usize
-        },
+        Err(e) => (-LinuxError::from(e).code()) as usize,
     }
 }
 
 pub fn get_user_str(ptr: usize) -> String {
     let ptr = ptr as *const u8;
-    axhal::arch::enable_sum();
     let ptr = raw_ptr_to_ref_str(ptr);
     let s = String::from(ptr);
-    axhal::arch::disable_sum();
     s
 }
 

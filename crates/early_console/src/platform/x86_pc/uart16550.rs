@@ -1,6 +1,6 @@
 //! Uart 16550.
 
-use spinlock::SpinNoIrq;
+use spinbase::SpinNoIrq;
 use x86_64::instructions::port::{Port, PortReadOnly, PortWriteOnly};
 
 const UART_CLOCK_FACTOR: usize = 16;
@@ -74,6 +74,7 @@ impl Uart16550 {
         unsafe { self.data.write(c) };
     }
 
+    #[allow(unused)]
     fn getchar(&mut self) -> Option<u8> {
         if self.line_sts().contains(LineStsFlags::INPUT_FULL) {
             unsafe { Some(self.data.read()) }
@@ -100,6 +101,6 @@ pub fn getchar() -> Option<u8> {
     COM1.lock().getchar()
 }
 
-pub(super) fn init() {
+pub fn console_init() {
     COM1.lock().init(115200);
 }

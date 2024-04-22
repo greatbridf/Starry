@@ -185,7 +185,7 @@ dependencies = [
  "axfs",
  "axhal",
  "axio",
- "axlog",
+ "axlog2",
  "axnet",
  "axruntime",
  "axtask",
@@ -202,7 +202,7 @@ dependencies = [
  "axfs",
  "axhal",
  "axio",
- "axlog",
+ "axlog2",
  "axnet",
  "axruntime",
  "axsync",
@@ -227,6 +227,7 @@ dependencies = [
  "axtrap",
  "cfg-if",
  "dw_apb_uart",
+ "early_console",
  "log",
  "mkboot",
  "raw-cpuid 11.0.1",
@@ -416,10 +417,11 @@ dependencies = [
  "arm_pl011",
  "axalloc",
  "axconfig",
- "axlog",
+ "axlog2",
  "bitflags 2.4.0",
  "cfg-if",
  "dw_apb_uart",
+ "early_console",
  "handler_table",
  "kernel_guard",
  "lazy_init",
@@ -603,6 +605,8 @@ dependencies = [
  "log",
  "mmap",
  "riscv",
+ "x86",
+ "x86_64",
 ]
 
 [[package]]
@@ -1031,10 +1035,13 @@ name = "early_console"
 version = "0.1.0"
 dependencies = [
  "axconfig",
+ "bitflags 2.4.0",
  "cfg-if",
  "log",
  "riscv",
  "sbi-rt",
+ "spinbase",
+ "x86_64",
 ]
 
 [[package]]
@@ -1140,6 +1147,7 @@ dependencies = [
  "axerrno",
  "axfile",
  "axhal",
+ "early_console",
  "log",
  "mutex",
  "task",
@@ -1174,6 +1182,7 @@ name = "fork"
 version = "0.1.0"
 dependencies = [
  "axerrno",
+ "axhal",
  "bitflags 2.4.0",
  "log",
  "run_queue",

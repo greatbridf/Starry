@@ -12,3 +12,4 @@ axfile = { path = "../axfile" }
 mutex = { path = "../mutex" }
 axerrno = { path = "../../crates/axerrno" }
 axhal = { path = "../axhal" }
+early_console = { path = "../../crates/early_console" }

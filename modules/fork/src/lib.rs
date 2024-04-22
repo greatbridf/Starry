@@ -6,8 +6,8 @@ extern crate alloc;
 use alloc::boxed::Box;
 use alloc::string::String;
 
-use task::{current, TaskRef, Pid};
-use axerrno::{LinuxResult, LinuxError};
+use axerrno::{LinuxError, LinuxResult};
+use task::{current, Pid, TaskRef};
 
 bitflags::bitflags! {
     /// clone flags
@@ -36,8 +36,10 @@ struct KernelCloneArgs {
 
 impl KernelCloneArgs {
     fn new(
-        flags: CloneFlags, name: &str, exit_signal: u32,
-        entry: Option<*mut dyn FnOnce()>
+        flags: CloneFlags,
+        name: &str,
+        exit_signal: u32,
+        entry: Option<*mut dyn FnOnce()>,
     ) -> Self {
         Self {
             flags,
@@ -59,7 +61,11 @@ impl KernelCloneArgs {
         assert!(!trace);
 
         let task = self.copy_process(None, trace)?;
-        debug!("sched task fork: pid[{}] -> pid[{}].", task::current().pid(), task.pid());
+        debug!(
+            "sched task fork: pid[{}] -> pid[{}].",
+            task::current().pid(),
+            task.pid()
+        );
 
         let pid = task.pid();
         self.wake_up_new_task(task);
@@ -110,7 +116,11 @@ impl KernelCloneArgs {
         assert!(self.entry.is_some());
         use alloc::sync::Arc;
         let task = task::as_task_mut(task);
-        Arc::get_mut(&mut task.sched_info).unwrap().reset(self.entry, task_entry as usize, 0.into());
+        Arc::get_mut(&mut task.sched_info).unwrap().reset(
+            self.entry,
+            task_entry as usize,
+            0.into(),
+        );
         error!("copy_thread!");
     }
 }
@@ -129,11 +139,7 @@ extern "C" fn task_entry() -> ! {
     }
 
     let sp = task::current().pt_regs();
-    unsafe { ret_from_fork(sp) };
-
-    extern "Rust" {
-        fn ret_from_fork(sp: usize);
-    }
+    axhal::arch::ret_from_fork(sp);
     unimplemented!("task_entry!");
 }
 
@@ -148,7 +154,10 @@ where
     assert!((flags.bits() & CloneFlags::CSIGNAL.bits()) == 0);
     let f = Box::into_raw(Box::new(f));
     let args = KernelCloneArgs::new(
-        flags | CloneFlags::CLONE_VM | CloneFlags::CLONE_UNTRACED, "", 0, Some(f)
+        flags | CloneFlags::CLONE_VM | CloneFlags::CLONE_UNTRACED,
+        "",
+        0,
+        Some(f),
     );
     args.perform().expect("kernel_clone failed.")
 }

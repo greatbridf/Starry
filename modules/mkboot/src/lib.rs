@@ -5,17 +5,15 @@
 #[macro_use]
 extern crate axlog2;
 extern crate alloc;
-use alloc::string::String;
-use alloc::vec::Vec;
 
 #[cfg(all(target_os = "none", not(test)))]
 mod lang_items;
 
 use axerrno::{LinuxError, LinuxResult};
+use axhal::mem::{memory_regions, phys_to_virt};
+use axtype::DtbInfo;
 use core::sync::atomic::{AtomicUsize, Ordering};
 use fork::{user_mode_thread, CloneFlags};
-use axtype::DtbInfo;
-use axhal::mem::{phys_to_virt, memory_regions};
 use preempt_guard::NoPreempt;
 
 #[cfg(feature = "smp")]
@@ -124,30 +122,42 @@ fn setup_arch(dtb: usize) -> LinuxResult<DtbInfo> {
     parse_dtb(dtb)
 }
 
-fn parse_dtb(dtb_pa: usize) -> LinuxResult<DtbInfo> {
-    let mut dtb_info = DtbInfo::new();
-    let mut cb = |name: String, _addr_cells: usize, _size_cells: usize, props: Vec<(String, Vec<u8>)>| {
-        if name == "chosen" {
-            for prop in props {
-                match prop.0.as_str() {
-                    "bootargs" => {
-                        if let Ok(cmd) = core::str::from_utf8(&prop.1) {
-                            parse_cmdline(cmd, &mut dtb_info);
+fn parse_dtb(_dtb_pa: usize) -> LinuxResult<DtbInfo> {
+    #[cfg(target_arch = "riscv64")]
+    {
+        let mut dtb_info = DtbInfo::new();
+        use alloc::string::String;
+        use alloc::vec::Vec;
+        let mut cb = |name: String,
+                      _addr_cells: usize,
+                      _size_cells: usize,
+                      props: Vec<(String, Vec<u8>)>| {
+            if name == "chosen" {
+                for prop in props {
+                    match prop.0.as_str() {
+                        "bootargs" => {
+                            if let Ok(cmd) = core::str::from_utf8(&prop.1) {
+                                parse_cmdline(cmd, &mut dtb_info);
+                            }
                         }
-                    },
-                    _ => (),
+                        _ => (),
+                    }
                 }
             }
-        }
-    };
+        };
 
-    let dtb_va = phys_to_virt(dtb_pa.into());
-    let dt = axdtb::DeviceTree::init(dtb_va.into()).unwrap();
-    dt.parse(dt.off_struct, 0, 0, &mut cb).unwrap();
-
-    Ok(dtb_info)
+        let dtb_va = phys_to_virt(_dtb_pa.into());
+        let dt = axdtb::DeviceTree::init(dtb_va.into()).unwrap();
+        dt.parse(dt.off_struct, 0, 0, &mut cb).unwrap();
+        Ok(dtb_info)
+    }
+    #[cfg(not(target_arch = "riscv64"))]
+    {
+        Ok(DtbInfo::new())
+    }
 }
 
+#[allow(dead_code)]
 fn parse_cmdline(cmd: &str, dtb_info: &mut DtbInfo) {
     let cmd = cmd.trim_end_matches(char::from(0));
     if cmd.len() > 0 {
@@ -255,12 +265,12 @@ fn kernel_init(dtb_info: DtbInfo) {
      * trying to recover a really broken machine.
      */
     if let Some(cmd) = dtb_info.get_init_cmd() {
-        run_init_process(cmd)
-            .unwrap_or_else(|_| panic!("Requested init {} failed.", cmd));
+        run_init_process(cmd).unwrap_or_else(|_| panic!("Requested init {} failed.", cmd));
         return;
     }
 
-    try_to_run_init_process("/sbin/init").expect("No working init found.");
+    // TODO: Replace this testcase with a more appropriate x86_64 testcase
+    try_to_run_init_process("/sbin/x86_64_time_test").expect("No working init found.");
 }
 
 fn try_to_run_init_process(init_filename: &str) -> LinuxResult {

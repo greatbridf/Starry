@@ -37,7 +37,7 @@ pub fn reset_cpu() {
 /// reboot system
 #[allow(dead_code)]
 pub fn do_reset() {
-    axlog::ax_println!("resetting ...\n");
+    axlog2::ax_println!("resetting ...\n");
 
     // wait 50 ms
     busy_wait(Duration::from_millis(50));

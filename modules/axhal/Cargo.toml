@@ -24,7 +24,7 @@ log = "0.4"
 cfg-if = "1.0"
 bitflags = "2.2"
 static_assertions = "1.1.0"
-axlog = { path = "../axlog" }
+axlog2 = { path = "../axlog2" }
 axconfig = { path = "../axconfig" }
 axalloc = { path = "../axalloc", optional = true }
 kernel_guard = { path = "../../crates/kernel_guard" }
@@ -36,6 +36,7 @@ page_table_entry = { path = "../../crates/page_table_entry" }
 percpu2 = { path = "../../crates/percpu2" }
 memory_addr = { path = "../../crates/memory_addr" }
 handler_table = { path = "../../crates/handler_table" }
+early_console = { path = "../../crates/early_console" }
 
 [target.'cfg(target_arch = "x86_64")'.dependencies]
 x86 = "0.52"

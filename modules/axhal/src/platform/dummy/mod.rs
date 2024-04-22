@@ -85,3 +85,12 @@ pub fn platform_init() {}
 /// Initializes the platform devices for secondary CPUs.
 #[cfg(feature = "smp")]
 pub fn platform_init_secondary() {}
+
+/// To be called by the kernel to set the top of the TSS stack.
+pub fn set_tss_stack_top(_kernel_stack_top: memory_addr::VirtAddr) {}
+
+#[cfg(feature = "irq")]
+pub fn end_of_interrupt() {}
+
+#[cfg(feature = "irq")]
+pub fn set_enable(_irq_num: usize, _enabled: bool) {}

@@ -9,9 +9,12 @@ pub mod mp;
 unsafe extern "C" fn rust_entry(cpu_id: usize, dtb: usize) {
     axhal::mem::clear_bss();
     axhal::cpu::init_primary(cpu_id);
-    axtrap::init_trap_vector();
+    axtrap::init_trap();
     #[cfg(feature = "alloc")]
     crate::alloc::init_allocator();
+
+    // #[cfg(feature = "monolithic")]
+    riscv::register::sstatus::set_sum();
 
     #[cfg(feature = "smp")]
     mp::start_secondary_cpus(cpu_id);

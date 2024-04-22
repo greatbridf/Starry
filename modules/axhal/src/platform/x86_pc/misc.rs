@@ -8,9 +8,9 @@ pub fn terminate() -> ! {
 
     #[cfg(platform = "x86_64-pc-oslab")]
     {
-        axlog::ax_println!("System will reboot, press any key to continue ...");
-        while super::console::getchar().is_none() {}
-        axlog::ax_println!("Rebooting ...");
+        axlog2::ax_println!("System will reboot, press any key to continue ...");
+        while axhal::console::getchar().is_none() {}
+        axlog2::ax_println!("Rebooting ...");
         unsafe { PortWriteOnly::new(0x64).write(0xfeu8) };
     }
 

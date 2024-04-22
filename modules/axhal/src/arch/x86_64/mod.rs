@@ -1,20 +1,32 @@
 mod context;
 mod gdt;
-mod idt;
 
-#[cfg(target_os = "none")]
 mod trap;
-
+#[cfg(feature = "paging")]
+use crate::mem::PAGE_SIZE_4K;
 use core::arch::asm;
-
 use memory_addr::{PhysAddr, VirtAddr};
+pub use trap::ret_from_fork;
 use x86::{controlregs, msr, tlb};
 use x86_64::instructions::interrupts;
 
-pub use self::context::{ExtendedState, FxsaveArea, TaskContext, TrapFrame};
+pub use self::context::{start_thread, ExtendedState, FxsaveArea, TaskContext, TrapFrame};
 pub use self::gdt::GdtStruct;
-pub use self::idt::IdtStruct;
 pub use x86_64::structures::tss::TaskStateSegment;
+pub const TASK_SIZE: usize = 0x40_0000_0000;
+#[cfg(feature = "paging")]
+pub const STACK_SIZE: usize = 32 * PAGE_SIZE_4K;
+
+#[cfg(feature = "paging")]
+pub const TASK_UNMAPPED_BASE: usize = (TASK_SIZE / 3) & !(PAGE_SIZE_4K - 1);
+/*
+ * This is the location that an ET_DYN program is loaded if exec'ed.
+ * Typical use of this is to invoke "./ld.so someprog" to test out
+ * a new version of the loader.
+ * We need to make sure that it is out of the way of the program
+ * that it will "exec", and that there is sufficient room for the brk.
+ */
+pub const ELF_ET_DYN_BASE: usize = (TASK_SIZE / 3) * 2;
 
 /// Allows the current CPU to respond to interrupts.
 #[inline]
@@ -107,4 +119,8 @@ pub fn read_thread_pointer() -> usize {
 #[inline]
 pub unsafe fn write_thread_pointer(fs_base: usize) {
     unsafe { msr::wrmsr(msr::IA32_FS_BASE, fs_base as u64) }
+}
+
+pub unsafe fn write_page_table_root0(root_paddr: PhysAddr) {
+    write_page_table_root(root_paddr)
 }

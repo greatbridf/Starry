@@ -42,13 +42,14 @@ pub fn set_oneshot_timer(deadline_ns: u64) {
     }
 }
 
-pub(super) fn init_early() {
+/// Initialize the percpu timer and frequency.
+pub fn init_early() {
     if let Some(freq) = CpuId::new()
         .get_processor_frequency_info()
         .map(|info| info.processor_base_frequency())
     {
         if freq > 0 {
-            axlog::ax_println!("Got TSC frequency by CPUID: {} MHz", freq);
+            axlog2::ax_println!("Got TSC frequency by CPUID: {} MHz", freq);
             unsafe { CPU_FREQ_MHZ = freq as u64 }
         }
     }
