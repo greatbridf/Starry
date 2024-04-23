@@ -9,10 +9,6 @@ static ENTERED_CPUS: AtomicUsize = AtomicUsize::new(1);
 pub extern "C" fn rust_main_secondary(cpu_id: usize) -> ! {
     ENTERED_CPUS.fetch_add(1, Ordering::Relaxed);
 
-    while init_cpu_num() < 1 {
-        core::hint::spin_loop();
-    }
-
     info!("Secondary CPU {:x} started.", cpu_id);
 
     #[cfg(feature = "paging")]
@@ -49,9 +45,9 @@ pub fn entered_cpus_num() -> usize {
     ENTERED_CPUS.load(Ordering::Acquire)
 }
 
-/// Whether the primary CPU has been initialized.
-///
-/// Only after the primary CPU has been initialized, the secondary CPUs can be started.
-fn init_cpu_num() -> usize {
-    super::INITED_CPUS.load(Ordering::Acquire)
-}
+// /// Whether the primary CPU has been initialized.
+// ///
+// /// Only after the primary CPU has been initialized, the secondary CPUs can be started.
+// fn init_cpu_num() -> usize {
+//     super::INITED_CPUS.load(Ordering::Acquire)
+// }

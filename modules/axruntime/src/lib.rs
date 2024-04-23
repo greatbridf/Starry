@@ -39,9 +39,6 @@ const LOGO: &str = r#"
 d88P     888 888      "Y8888P  "Y8888   "Y88888P"   "Y8888P"
 "#;
 
-extern "C" {
-    fn main();
-}
 #[cfg(feature = "img")]
 core::arch::global_asm!(include_str!("../../axdriver/image.S"));
 
@@ -86,7 +83,8 @@ use core::sync::atomic::{AtomicUsize, Ordering};
 
 static INITED_CPUS: AtomicUsize = AtomicUsize::new(0);
 
-fn is_init_ok() -> bool {
+/// Whether all CPUs has been initialized.
+pub fn is_init_ok() -> bool {
     INITED_CPUS.load(Ordering::Acquire) == axconfig::SMP
 }
 
@@ -100,7 +98,7 @@ fn is_init_ok() -> bool {
 /// In multi-core environment, this function is called on the primary CPU,
 /// and the secondary CPUs call [`rust_main_secondary`].
 #[cfg_attr(not(test), no_mangle)]
-pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
+pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) {
     ax_println!("{}", LOGO);
     ax_println!(
         "\
@@ -181,13 +179,10 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
 
     info!("Primary CPU {} init OK.", cpu_id);
     INITED_CPUS.fetch_add(1, Ordering::Relaxed);
+}
 
-    while !is_init_ok() {
-        core::hint::spin_loop();
-    }
-
-    unsafe { main() };
-
+/// exit the main task
+pub fn exit_main() {
     #[cfg(feature = "multitask")]
     axtask::exit(0);
     #[cfg(not(feature = "multitask"))]
@@ -207,7 +202,6 @@ cfg_if::cfg_if! {
         fn remap_kernel_memory() -> Result<(), axhal::paging::PagingError> {
             use axhal::mem::{memory_regions, phys_to_virt};
             if axhal::cpu::this_cpu_is_bsp() {
-                info!("cpu: {}",axhal::cpu::this_cpu_id());
                 let mut kernel_page_table = PageTable::try_new()?;
                 for r in memory_regions() {
                     kernel_page_table.map_region(

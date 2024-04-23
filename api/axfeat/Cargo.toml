@@ -21,7 +21,7 @@ monolithic = ["axruntime/monolithic", "axhal/monolithic", "dep:axprocess", "arch
 smp = ["axhal/smp", "axruntime/smp", "spinlock/smp", "arch_boot/smp"]
 
 # Floating point/SIMD
-fp_simd = ["axhal/fp_simd", "taskctx/fp_simd"]
+fp_simd = ["axhal/fp_simd", "taskctx/fp_simd", "arch_boot/fp_simd"]
 
 # Interrupts
 irq = ["axhal/irq", "axruntime/irq", "axtask?/irq", "arch_boot/irq"]

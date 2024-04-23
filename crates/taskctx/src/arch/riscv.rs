@@ -36,29 +36,6 @@ pub struct TaskContext {
     pub tp: usize,
     // TODO: FP states
 }
-/// Reads the thread pointer of the current CPU.
-///
-/// It is used to implement TLS (Thread Local Storage).
-#[inline]
-#[allow(dead_code)]
-fn read_thread_pointer() -> usize {
-    let tp;
-    unsafe { core::arch::asm!("mv {}, tp", out(reg) tp) };
-    tp
-}
-
-/// Writes the thread pointer of the current CPU.
-///
-/// It is used to implement TLS (Thread Local Storage).
-///
-/// # Safety
-///
-/// This function is unsafe as it changes the CPU states.
-#[inline]
-#[allow(dead_code)]
-unsafe fn write_thread_pointer(tp: usize) {
-    core::arch::asm!("mv tp, {}", in(reg) tp)
-}
 
 impl TaskContext {
     /// Creates a new default context for a new task.

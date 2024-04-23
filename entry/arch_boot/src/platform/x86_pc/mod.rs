@@ -3,6 +3,10 @@ mod boot;
 #[cfg(feature = "smp")]
 pub mod mp;
 
+extern "C" {
+    fn main();
+}
+
 fn current_cpu_id() -> usize {
     match raw_cpuid::CpuId::new().get_feature_info() {
         Some(finfo) => finfo.initial_local_apic_id() as usize,
@@ -18,19 +22,26 @@ unsafe extern "C" fn rust_entry(magic: usize, _mbi: usize) {
         axtrap::init_interrupt();
         axlog::init();
         axlog::set_max_level(option_env!("AX_LOG").unwrap_or("")); // no effect if set `log-level-*` features
-
         #[cfg(feature = "alloc")]
         crate::alloc::init_allocator();
-
         axhal::console::init();
         axhal::x86_64::dtables::init_primary();
         axhal::x86_64::time::init_early();
-        axlog::ax_println!("test");
         let cpu_id = current_cpu_id();
+        axruntime::rust_main(cpu_id, 0);
+
         #[cfg(feature = "smp")]
         crate::mp::start_secondary_cpus(cpu_id);
 
-        axruntime::rust_main(cpu_id, 0);
+        while !axruntime::is_init_ok() {
+            core::hint::spin_loop();
+        }
+
+        unsafe {
+            main();
+        }
+
+        axruntime::exit_main();
     }
 }
 

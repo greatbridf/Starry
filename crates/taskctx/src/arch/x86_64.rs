@@ -103,28 +103,6 @@ pub struct TaskContext {
     pub ext_state: ExtendedState,
 }
 
-/// Reads the thread pointer of the current CPU.
-///
-/// It is used to implement TLS (Thread Local Storage).
-#[cfg(any(feature = "tls", feature = "monolithic"))]
-#[inline]
-fn read_thread_pointer() -> usize {
-    unsafe { x86::msr::rdmsr(x86::msr::IA32_FS_BASE) as usize }
-}
-
-/// Writes the thread pointer of the current CPU.
-///
-/// It is used to implement TLS (Thread Local Storage).
-///
-/// # Safety
-///
-/// This function is unsafe as it changes the CPU states.
-#[cfg(any(feature = "tls", feature = "monolithic"))]
-#[inline]
-unsafe fn write_thread_pointer(fs_base: usize) {
-    unsafe { x86::msr::wrmsr(x86::msr::IA32_FS_BASE, fs_base as u64) }
-}
-
 impl TaskContext {
     /// Creates a new default context for a new task.
     pub const fn new() -> Self {
@@ -157,24 +135,6 @@ impl TaskContext {
         }
         self.kstack_top = kstack_top;
         self.fs_base = tls_area.as_usize();
-    }
-
-    /// Switches to another task.
-    ///
-    /// It first saves the current task's context from CPU to this place, and then
-    /// restores the next task's context from `next_ctx` to CPU.
-    pub fn switch_to(&mut self, next_ctx: &Self) {
-        #[cfg(feature = "fp_simd")]
-        {
-            self.ext_state.save();
-            next_ctx.ext_state.restore();
-        }
-        #[cfg(any(feature = "tls", feature = "monolithic"))]
-        {
-            self.fs_base = read_thread_pointer();
-            unsafe { write_thread_pointer(next_ctx.fs_base) };
-        }
-        unsafe { context_switch(&mut self.rsp, &next_ctx.rsp) }
     }
 }
 

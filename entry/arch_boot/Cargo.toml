@@ -10,6 +10,7 @@ monolithic = ["alloc", "dep:linux_syscall_api", "axtrap/monolithic"]
 alloc = ["dep:axalloc"]
 smp = ["axruntime/smp"]
 irq = ["axtrap/irq"]
+fp_simd = []
 
 default = []
 

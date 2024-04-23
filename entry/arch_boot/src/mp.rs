@@ -1,5 +1,5 @@
 use axconfig::{SMP, TASK_STACK_SIZE};
-use axhal::mem::{virt_to_phys, PhysAddr, VirtAddr};
+use axhal::mem::{virt_to_phys, VirtAddr};
 
 #[link_section = ".bss.stack"]
 static mut SECONDARY_BOOT_STACK: [[u8; TASK_STACK_SIZE]; SMP - 1] = [[0; TASK_STACK_SIZE]; SMP - 1];
