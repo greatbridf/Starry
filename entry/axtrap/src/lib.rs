@@ -20,11 +20,4 @@ mod arch;
 
 mod trap;
 
-pub fn init_trap_vector() {
-    #[cfg(any(
-        target_arch = "riscv32",
-        target_arch = "riscv64",
-        target_arch = "aarch64"
-    ))]
-    arch::init_trap_vector_base()
-}
+pub use arch::init_interrupt;

@@ -27,7 +27,8 @@ extern "C" {
     fn trap_vector_base();
 }
 
-pub fn init_trap_vector_base() {
+/// To initialize the trap vector base address.
+pub fn init_interrupt() {
     set_trap_vector_base(trap_vector_base as usize);
 }
 
@@ -56,6 +57,7 @@ pub fn riscv_trap_handler(tf: &mut TrapFrame, from_user: bool) {
                 ],
             );
             tf.regs.a0 = result as usize;
+            axhal::arch::disable_irqs();
         }
 
         #[cfg(feature = "monolithic")]
@@ -113,8 +115,5 @@ pub fn riscv_trap_handler(tf: &mut TrapFrame, from_user: bool) {
         if from_user {
             handle_signal();
         }
-        // 在保证将寄存器都存储好之后，再开启中断
-        // 否则此时会因为写入csr寄存器过程中出现中断，导致出现异常
-        axhal::arch::disable_irqs();
     }
 }

@@ -8,3 +8,6 @@
 mod alloc;
 
 mod platform;
+
+#[cfg(feature = "smp")]
+mod mp;

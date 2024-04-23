@@ -2,25 +2,15 @@ use core::arch::global_asm;
 
 use x86_64::{
     registers::{
-        model_specific::{Efer, EferFlags, KernelGsBase, LStar, SFMask, Star},
+        model_specific::{Efer, EferFlags, LStar, SFMask, Star},
         rflags::RFlags,
     },
     VirtAddr,
 };
 
-use crate::{arch::GdtStruct, trap::handle_syscall};
+use axhal::arch::{GdtStruct, TrapFrame};
 
-use super::TrapFrame;
-
-#[cfg(feature = "monolithic")]
 global_asm!(include_str!("syscall.S"));
-
-#[no_mangle]
-fn x86_syscall_handler(tf: &mut TrapFrame) {
-    tf.rax = handle_syscall(tf.get_syscall_num(), tf.get_syscall_args()) as u64;
-
-    crate::trap::handle_signal();
-}
 
 #[no_mangle]
 #[percpu::def_percpu]
@@ -30,7 +20,7 @@ static USER_RSP_OFFSET: usize = 0;
 #[percpu::def_percpu]
 static KERNEL_RSP_OFFSET: usize = 0;
 
-pub fn init_syscall() {
+pub(super) fn init_syscall() {
     extern "C" {
         fn syscall_entry();
     }
@@ -54,5 +44,13 @@ pub fn init_syscall() {
     unsafe {
         Efer::update(|efer| *efer |= EferFlags::SYSTEM_CALL_EXTENSIONS);
     }
-    KernelGsBase::write(VirtAddr::new(0));
+}
+
+#[no_mangle]
+fn x86_syscall_handler(tf: &mut TrapFrame) {
+    tf.rax = crate::trap::handle_syscall(tf.get_syscall_num(), tf.get_syscall_args()) as u64;
+    #[cfg(feature = "monolithic")]
+    if tf.is_user() {
+        crate::trap::handle_signals();
+    }
 }

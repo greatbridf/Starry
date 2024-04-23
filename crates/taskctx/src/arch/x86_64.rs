@@ -45,12 +45,12 @@ pub struct ExtendedState {
 #[cfg(feature = "fp_simd")]
 impl ExtendedState {
     #[inline]
-    fn save(&mut self) {
+    pub fn save(&mut self) {
         unsafe { core::arch::x86_64::_fxsave64(&mut self.fxsave_area as *mut _ as *mut u8) }
     }
 
     #[inline]
-    fn restore(&self) {
+    pub fn restore(&self) {
         unsafe { core::arch::x86_64::_fxrstor64(&self.fxsave_area as *const _ as *const u8) }
     }
 

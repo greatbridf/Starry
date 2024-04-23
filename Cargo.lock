@@ -227,8 +227,11 @@ dependencies = [
  "cfg-if",
  "linux_syscall_api",
  "log",
+ "raw-cpuid 11.0.1",
  "riscv",
  "sbi-rt",
+ "x86",
+ "x86_64",
 ]
 
 [[package]]
@@ -622,7 +625,10 @@ dependencies = [
  "kernel_guard",
  "lazy_init",
  "linux_syscall_api",
+ "percpu",
  "riscv",
+ "x86",
+ "x86_64",
 ]
 
 [[package]]

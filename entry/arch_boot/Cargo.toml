@@ -11,6 +11,8 @@ alloc = ["dep:axalloc"]
 smp = ["axruntime/smp"]
 irq = ["axtrap/irq"]
 
+default = []
+
 [dependencies]
 cfg-if = "1.0"
 log = "0.4"
@@ -24,6 +26,11 @@ axlog = { path = "../../modules/axlog" }
 
 [build-dependencies]
 axconfig = { path = "../../modules/axconfig" }
+
+[target.'cfg(target_arch = "x86_64")'.dependencies]
+x86 = "0.52"
+x86_64 = "0.14"
+raw-cpuid = "11.0"
 
 [target.'cfg(any(target_arch = "riscv32", target_arch = "riscv64"))'.dependencies]
 riscv = "0.10"

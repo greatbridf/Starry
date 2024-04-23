@@ -9,7 +9,7 @@ edition = "2021"
 default = []
 monolithic = ["dep:linux_syscall_api"]
 irq = []
-preempt = ["axtask/preempt"]
+preempt = ["axtask/preempt", "percpu/preempt", "kernel_guard/preempt"]
 
 [dependencies]
 axlog = { path = "../../modules/axlog" }
@@ -20,6 +20,11 @@ lazy_init = { path = "../../crates/lazy_init" }
 axhal = { path = "../../modules/axhal" }
 axtask = { path = "../../modules/axtask", optional = true }
 kernel_guard = { path = "../../crates/kernel_guard" }
+percpu = { path = "../../crates/percpu" }
+
+[target.'cfg(target_arch = "x86_64")'.dependencies]
+x86 = "0.52"
+x86_64 = "0.14"
 
 [target.'cfg(any(target_arch = "riscv32", target_arch = "riscv64"))'.dependencies]
 riscv = "0.10"

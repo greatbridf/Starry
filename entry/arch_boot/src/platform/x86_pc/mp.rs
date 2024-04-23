@@ -1,5 +1,5 @@
-use crate::mem::{phys_to_virt, PhysAddr, PAGE_SIZE_4K};
-use crate::time::{busy_wait, Duration};
+use axhal::mem::{phys_to_virt, PhysAddr, PAGE_SIZE_4K};
+use axhal::time::{busy_wait, Duration};
 
 const START_PAGE_IDX: u8 = 6;
 const START_PAGE_PADDR: PhysAddr = PhysAddr::from(START_PAGE_IDX as usize * PAGE_SIZE_4K);
@@ -29,11 +29,11 @@ unsafe fn setup_startup_page(stack_top: PhysAddr) {
 }
 
 /// Starts the given secondary CPU with its boot stack.
-pub fn start_secondary_cpu(apic_id: usize, stack_top: PhysAddr) {
+pub(crate) fn start_given_secondary_cpu(apic_id: usize, stack_top: PhysAddr) {
     unsafe { setup_startup_page(stack_top) };
 
-    let apic_id = super::apic::raw_apic_id(apic_id as u8);
-    let lapic = super::apic::local_apic();
+    let apic_id = axhal::x86_64::apic::raw_apic_id(apic_id as u8);
+    let lapic = axhal::x86_64::apic::local_apic();
 
     // INIT-SIPI-SIPI Sequence
     // Ref: Intel SDM Vol 3C, Section 8.4.4, MP Initialization Example

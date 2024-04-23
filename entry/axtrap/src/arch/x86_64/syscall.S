@@ -1,7 +1,8 @@
 .section .text
 syscall_entry:
     swapgs
-    mov     gs:[offset __PERCPU_USER_RSP_OFFSET], rsp
+    # The user rsp and kernel rsp are defined in axhal
+    mov     gs:[offset __PERCPU_USER_RSP_OFFSET], rsp   
     mov     rsp, gs:[offset __PERCPU_KERNEL_RSP_OFFSET]
 
     sub     rsp, 8                      // skip user_ss
