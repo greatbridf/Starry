@@ -8,6 +8,8 @@ pub use core::time::Duration;
 /// represent a duration, but a clock time.
 pub type TimeValue = Duration;
 
+#[allow(dead_code)]
+pub const NANOS_PER_SEC: u64 = 1_000_000_000;
 #[cfg(feature = "irq")]
 pub use crate::platform::irq::TIMER_IRQ_NUM;
 #[cfg(feature = "irq")]

@@ -19,6 +19,7 @@ pub(super) const S_EXT: usize = INTC_IRQ_BASE + 9;
 static TIMER_HANDLER: LazyInit<IrqHandler> = LazyInit::new();
 
 /// The maximum number of IRQs.
+#[allow(unused)]
 pub const MAX_IRQ_COUNT: usize = 1024;
 
 macro_rules! with_cause {

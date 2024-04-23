@@ -50,7 +50,6 @@ pub fn _mmap(
     len = align_up_4k(len);
     debug!("mmap va {:#X} offset {:#X}", va, offset);
     if (flags & MAP_FIXED) == 0 {
-        info!("test: va: {:#X} len: {:#X}", va, len);
         va = get_unmapped_vma(va, len);
         debug!("Get unmapped vma {:#X}", va);
     }

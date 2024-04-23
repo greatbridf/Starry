@@ -1,6 +1,6 @@
+use crate::arch::{SR_FS_INITIAL, SR_SPIE, SR_SUM, SR_UXL_64};
 use core::arch::asm;
 use memory_addr::VirtAddr;
-use crate::arch::{SR_SPIE, SR_FS_INITIAL, SR_UXL_64};
 
 include_asm_marcos!();
 
@@ -163,12 +163,9 @@ unsafe extern "C" fn context_switch(_current_task: &mut TaskContext, _next_task:
 }
 
 pub fn start_thread(regs: usize, pc: usize, sp: usize) {
-    let regs = unsafe {
-        core::slice::from_raw_parts_mut(
-            regs as *mut TrapFrame, 1
-        )
-    };
+    let regs = unsafe { core::slice::from_raw_parts_mut(regs as *mut TrapFrame, 1) };
     regs[0].sepc = pc;
-    regs[0].sstatus = SR_SPIE | SR_FS_INITIAL | SR_UXL_64;
+    // default to open the sum bit
+    regs[0].sstatus = SR_SPIE | SR_FS_INITIAL | SR_UXL_64 | SR_SUM;
     regs[0].regs.sp = sp;
 }

@@ -1,10 +1,6 @@
-use crate::trap::TRAPFRAME_SIZE;
-
 include_asm_marcos!();
-
+use crate::trap::TRAPFRAME_SIZE;
 pub fn ret_from_fork(kstack_sp: usize) {
-    let tramframe_size = core::mem::sizeof::<TrapFrame>();
-
     unsafe {
         core::arch::asm!(
             r"
@@ -15,7 +11,7 @@ pub fn ret_from_fork(kstack_sp: usize) {
             sret
             ",
             kstack_sp = in(reg) kstack_sp,
-            tramframe_size = in(reg) tramframe_size,
+            tramframe_size = const TRAPFRAME_SIZE,
         );
     };
 }

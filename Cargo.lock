@@ -1150,6 +1150,7 @@ dependencies = [
  "early_console",
  "log",
  "mutex",
+ "riscv",
  "task",
 ]
 

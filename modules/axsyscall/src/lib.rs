@@ -13,7 +13,6 @@ const MAX_SYSCALL_ARGS: usize = 6;
 pub type SyscallArgs = [usize; MAX_SYSCALL_ARGS];
 
 pub fn do_syscall(args: SyscallArgs, sysno: usize) -> usize {
-    info!("sysno: {}", sysno);
     match sysno {
         LINUX_SYSCALL_IOCTL => linux_syscall_ioctl(args),
         LINUX_SYSCALL_GETCWD => linux_syscall_getcwd(args),
@@ -50,7 +49,7 @@ pub fn do_syscall(args: SyscallArgs, sysno: usize) -> usize {
         LINUX_SYSCALL_TGKILL => linux_syscall_tgkill(args),
         LINUX_SYSCALL_EXIT => linux_syscall_exit(args),
         LINUX_SYSCALL_EXIT_GROUP => linux_syscall_exit_group(args),
-        _ => 0,
+        _ => panic!("Unsupported syscall: {}", sysno),
     }
 }
 
