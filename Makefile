@@ -164,7 +164,7 @@ make_bin:
 		$(call make_bin)
   endif
 
-build: make_bin $(OUT_DIR) $(OUT_BIN)
+build: $(OUT_DIR) $(OUT_BIN)
 
 disasm:
 	$(OBJDUMP) $(OUT_ELF) | less

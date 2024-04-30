@@ -4,9 +4,5 @@
 
 int main()
 {
-    if (fork() == 0) {
-        printf("Hello from child [%d - %d]\n", getpid(), getppid());
-    } else {
-        printf("Hello from parent [%d - %d]\n", getpid(), getppid());
-    }
+    printf("Hello from parent [%d]\n", getpid());
 }

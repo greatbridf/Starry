@@ -27,7 +27,7 @@ define make_bin
   @printf "Make bin for Starry\n"
 	@$(CC) -static $(A)/main.c -o testcases/sdcard/main
   @rust-objdump testcases/sdcard/main -S testcases/sdcard/main -l > $(A)/syscall.S
-  @python $(APP)/build.py $(A)/syscall.S $(APP)/features.txt img
+  @python3 $(APP)/build.py $(A)/syscall.S $(APP)/features.txt
   @rm -rf $(A)/syscall.S
   @sh ./build_img.sh sdcard
 endef

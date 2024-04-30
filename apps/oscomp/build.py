@@ -54,7 +54,10 @@ for line in lines:
         # 以逗号分割
         if (line_after.__len__() != 2):
             continue
-        syscall_id = int(line_after[1])
+        # 若为十六进制，转化为十进制
+        line_after[1] = line_after[1].strip()
+        if line_after[1].startswith("0x"):
+            syscall_id = int(line_after[1], 16)
     # 如果以ecall开头，说明是ecall指令
     elif line_after[0].endswith("ecall"):
         # 如果是ecall，那么就输出syscall id
