@@ -171,10 +171,11 @@ impl CURRENT_TASK_PTR_WRAPPER {
             {
                 core::arch::asm!(
                     "lui {0}, %hi({VAR})",
-                    "add {0}, {0}, gp", 
-                    "sd {1}, %lo({VAR})({0})", 
-                    out(reg) _, in(reg) val
-                    VAR = sym __PERCPU_CURRENT_TASK_PTR,);
+                    "add {0}, {0}, gp",
+                    "sd {1}, %lo({VAR})({0})",
+                    out(reg) _, in(reg) val,
+                    VAR = sym __PERCPU_CURRENT_TASK_PTR
+                );
             }
             #[cfg(target_arch = "x86_64")]
             {
