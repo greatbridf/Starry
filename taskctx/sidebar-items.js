@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["SchedPolicy","TaskState","TimerType"],"fn":["context_switch","current_task_ptr","disable_preempt","enable_preempt","set_current_task_ptr"],"struct":["ExtendedState","FxsaveArea","SchedStatus","TaskContext","TaskId","TaskInner","TimeStat"]};
