@@ -113,7 +113,7 @@ pub fn riscv_trap_handler(tf: &mut TrapFrame, from_user: bool) {
     #[cfg(feature = "monolithic")]
     {
         if from_user {
-            handle_signal();
+            handle_signals();
         }
     }
 }

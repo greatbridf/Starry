@@ -21,6 +21,8 @@ static mut __PERCPU_CURRENT_TASK_PTR: usize = 0;
 #[allow(non_camel_case_types)]
 /// Wrapper struct for the per-CPU data [stringify! (CURRENT_TASK_PTR)]
 struct CURRENT_TASK_PTR_WRAPPER {}
+
+#[allow(unused)]
 static CURRENT_TASK_PTR: CURRENT_TASK_PTR_WRAPPER = CURRENT_TASK_PTR_WRAPPER {};
 
 #[allow(dead_code)]

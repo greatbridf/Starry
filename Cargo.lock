@@ -2039,12 +2039,14 @@ dependencies = [
 name = "taskctx"
 version = "0.1.0"
 dependencies = [
+ "aarch64-cpu",
  "cfg-if",
  "lazy_init",
  "log",
  "memory_addr",
  "numeric-enum-macro",
  "static_assertions",
+ "tock-registers",
  "x86",
 ]
 
