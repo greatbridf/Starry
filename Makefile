@@ -208,12 +208,6 @@ test:
 test_monolithic: 
 	$(call app_test_for_monolithic)
 
-unittest:
-	$(call unit_test)
-
-unittest_no_fail_fast:
-	$(call unit_test,--no-fail-fast)
-
 disk_img:
 ifneq ($(wildcard $(DISK_IMG)),)
 	@printf "$(YELLOW_C)warning$(END_C): disk image \"$(DISK_IMG)\" already exists!\n"

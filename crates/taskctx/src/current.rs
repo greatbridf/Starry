@@ -1,4 +1,3 @@
-
 #[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
 #[inline]
 fn local_irq_save_and_disable() -> usize {
@@ -171,16 +170,16 @@ impl CURRENT_TASK_PTR_WRAPPER {
             #[cfg(target_arch = "riscv64")]
             {
                 core::arch::asm!(
-                    "lui {0}, %hi({VAR})", 
+                    "lui {0}, %hi({VAR})",
                     "add {0}, {0}, gp", 
                     "sd {1}, %lo({VAR})({0})", 
-                    out(reg) _, in(reg) val, 
+                    out(reg) _, in(reg) val
                     VAR = sym __PERCPU_CURRENT_TASK_PTR,);
             }
             #[cfg(target_arch = "x86_64")]
             {
                 core::arch::asm!(
-                    "mov qword ptr gs:[offset {VAR}], {0:r}", 
+                    "mov qword ptr gs:[offset {VAR}], {0:r}",
                     in(reg) val,
                     VAR = sym __PERCPU_CURRENT_TASK_PTR
                 )
@@ -194,7 +193,6 @@ impl CURRENT_TASK_PTR_WRAPPER {
         unimplemented!()
     }
 
-    
     /// Returns the value of the per-CPU data on the current CPU. Preemption will
     /// be disabled during the call.
     pub fn read_current(&self) -> usize {
@@ -260,4 +258,3 @@ pub unsafe fn set_current_task_ptr<T>(ptr: *const T) {
         aarch64_cpu::registers::SP_EL0.set(ptr as u64)
     }
 }
-
