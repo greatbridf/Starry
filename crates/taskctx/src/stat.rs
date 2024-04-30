@@ -25,6 +25,8 @@ impl From<usize> for TimerType {
         }
     }
 }
+
+/// 任务时间统计结构
 pub struct TimeStat {
     /// 用户态经过的时间，单位为纳秒
     utime_ns: usize,
@@ -49,6 +51,11 @@ pub struct TimeStat {
     pending_timer_signal: bool,
 }
 
+impl Default for TimeStat {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 impl TimeStat {
     /// 新建一个进程时需要初始化时间
     pub fn new() -> Self {

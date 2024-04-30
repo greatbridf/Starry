@@ -318,6 +318,15 @@ impl TaskInner {
         t
     }
 
+    /// To init the task context
+    ///
+    /// # Arguments
+    ///
+    /// * `entry` - the entry point of the task
+    ///
+    /// * `kstack_top` - the top of the kernel stack
+    ///
+    /// * `tls` - the address of the thread local storage
     pub fn init_task_ctx(&mut self, entry: usize, kstack_top: VirtAddr, tls: VirtAddr) {
         self.ctx.get_mut().init(entry, kstack_top, tls);
     }
@@ -517,6 +526,7 @@ impl TaskInner {
         self.ctx.get().as_mut().unwrap().fs_base = value;
     }
 
+    /// To set whether the task will be blocked by a vfork child
     #[inline]
     pub fn set_vfork_child(&self, is_vfork_child: bool) {
         self.is_vforked_child
@@ -529,9 +539,8 @@ impl TaskInner {
     }
 }
 
-// private methods
 impl TaskInner {
-    pub fn new_common(
+    fn new_common(
         id: TaskId,
         name: String,
         #[cfg(feature = "tls")] tls_area: (usize, usize),
@@ -623,93 +632,116 @@ impl TaskInner {
         self.state.store(state as u8, Ordering::Release)
     }
 
+    /// Whether the task is running
     #[inline]
     pub fn is_running(&self) -> bool {
         matches!(self.state(), TaskState::Running)
     }
 
+    /// Whether the task is ready to be scheduled
     #[inline]
     pub fn is_ready(&self) -> bool {
         matches!(self.state(), TaskState::Ready)
     }
 
+    /// Whether the task is blocked
     #[inline]
     pub fn is_blocked(&self) -> bool {
         matches!(self.state(), TaskState::Blocked)
     }
 
+    /// Whether the task has been inited
     #[inline]
     pub const fn is_init(&self) -> bool {
         self.is_init
     }
 
+    /// Whether the task is the idle task
     #[inline]
     pub const fn is_idle(&self) -> bool {
         self.is_idle
     }
 
+    /// Set the task waiting for reschedule
     #[inline]
     #[cfg(feature = "preempt")]
     pub fn set_preempt_pending(&self, pending: bool) {
         self.need_resched.store(pending, Ordering::Release)
     }
 
+    /// Get whether the task is waiting for reschedule
     #[inline]
     #[cfg(feature = "preempt")]
     pub fn get_preempt_pending(&self) -> bool {
         self.need_resched.load(Ordering::Acquire)
     }
 
+    /// Whether the task can be preempted
     #[inline]
     #[cfg(feature = "preempt")]
     pub fn can_preempt(&self, current_disable_count: usize) -> bool {
         self.preempt_disable_count.load(Ordering::Acquire) == current_disable_count
     }
 
+    /// Disable the preemption
     #[inline]
     #[cfg(feature = "preempt")]
     pub fn disable_preempt(&self) {
         self.preempt_disable_count.fetch_add(1, Ordering::Relaxed);
     }
 
+    /// Enable the preemption by increasing the disable count
+    ///
+    /// Only when the count is zero, the task can be preempted
     #[inline]
     #[cfg(feature = "preempt")]
     pub fn enable_preempt(&self) {
         self.preempt_disable_count.fetch_sub(1, Ordering::Relaxed);
     }
 
+    /// Get the number of preempt disable counter
     #[inline]
     #[cfg(feature = "preempt")]
     pub fn preempt_num(&self) -> usize {
         self.preempt_disable_count.load(Ordering::Acquire)
     }
 
+    /// Get the task context pointer
+    ///
+    /// # Safety
+    ///
+    /// The task context pointer is mutable, but it will be accessed by only one task at a time
     #[inline]
     pub const unsafe fn ctx_mut_ptr(&self) -> *mut TaskContext {
         self.ctx.get()
     }
 
+    /// Get the exit code
     #[inline]
     pub fn get_exit_code(&self) -> i32 {
         self.exit_code.load(Ordering::Acquire)
     }
 
+    /// Set the task exit code
     #[inline]
     pub fn set_exit_code(&self, code: i32) {
         self.exit_code.store(code, Ordering::Release)
     }
 
+    /// Get the task entry
     #[inline]
     pub fn get_entry(&self) -> Option<*mut dyn FnOnce()> {
         self.entry
     }
 
+    /// Get the task tls pointer
     #[cfg(feature = "tls")]
     #[inline]
     pub fn get_tls_ptr(&self) -> usize {
         self.tls.tls_ptr() as usize
     }
 
+    /// Reset the task time statistics
     pub fn reset_time_stat(&self, current_timestamp: usize) {
         let time = self.time.get();
         unsafe {

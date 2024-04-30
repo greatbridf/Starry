@@ -218,6 +218,7 @@ dependencies = [
 name = "arch_boot"
 version = "0.1.0"
 dependencies = [
+ "aarch64-cpu",
  "axalloc",
  "axconfig",
  "axhal",
@@ -227,9 +228,11 @@ dependencies = [
  "cfg-if",
  "linux_syscall_api",
  "log",
+ "of",
  "raw-cpuid 11.0.1",
  "riscv",
  "sbi-rt",
+ "tock-registers",
  "x86",
  "x86_64",
 ]
@@ -617,6 +620,7 @@ dependencies = [
 name = "axtrap"
 version = "0.1.0"
 dependencies = [
+ "aarch64-cpu",
  "axhal",
  "axlog",
  "axtask",
@@ -625,8 +629,10 @@ dependencies = [
  "kernel_guard",
  "lazy_init",
  "linux_syscall_api",
+ "log",
  "percpu",
  "riscv",
+ "tock-registers",
  "x86",
  "x86_64",
 ]

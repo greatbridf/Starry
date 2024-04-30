@@ -377,9 +377,7 @@ pub fn set_child_tid(tid: usize) {
     curr.set_clear_child_tid(tid);
 }
 
+/// Get the task reference by tid
 pub fn get_task_ref(tid: u64) -> Option<AxTaskRef> {
-    TID2TASK
-        .lock()
-        .get(&tid)
-        .map(|task_ref| Arc::clone(task_ref))
+    TID2TASK.lock().get(&tid).cloned()
 }

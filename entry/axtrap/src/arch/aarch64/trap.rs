@@ -1,19 +1,17 @@
 use core::arch::global_asm;
 
-use aarch64_cpu::registers::{ESR_EL1, FAR_EL1, SP_EL1};
-use tock_registers::interfaces::Readable;
+use aarch64_cpu::registers::{ESR_EL1, FAR_EL1, SP_EL1, VBAR_EL1};
+use tock_registers::interfaces::{Readable, Writeable};
 
-use super::TrapFrame;
+use axhal::arch::TrapFrame;
 
 global_asm!(include_str!("trap.S"));
 
 #[cfg(feature = "monolithic")]
-use crate::arch::{disable_irqs, enable_irqs};
+use axhal::arch::{disable_irqs, enable_irqs};
 
 #[cfg(feature = "monolithic")]
-use crate::trap::handle_syscall;
-
-use crate::trap::handle_signal;
+use crate::trap::{handle_signals, handle_syscall};
 
 #[repr(u8)]
 #[derive(Debug)]
@@ -35,9 +33,8 @@ enum TrapSource {
     LowerAArch32 = 3,
 }
 
-#[allow(dead_code)]
-extern "C" {
-    fn ret_to_first_user(sp: usize);
+pub(crate) fn set_exception_vector_base(exception_vector_base: usize) {
+    VBAR_EL1.set(exception_vector_base as _);
 }
 
 #[no_mangle]
@@ -75,7 +72,7 @@ fn handle_el1h_64_sync_exception(tf: &mut TrapFrame) {
     match esr.read_as_enum(ESR_EL1::EC) {
         Some(ESR_EL1::EC::Value::Brk64) => {
             let iss = esr.read(ESR_EL1::ISS);
-            debug!("BRK #{:#x} @ {:#x} ", iss, tf.elr);
+            log::debug!("BRK #{:#x} @ {:#x} ", iss, tf.elr);
             tf.elr += 4;
         }
         Some(ESR_EL1::EC::Value::DataAbortCurrentEL)
@@ -104,7 +101,7 @@ fn handle_el1h_64_sync_exception(tf: &mut TrapFrame) {
 
 #[no_mangle]
 fn handle_el1h_64_irq_exception(_tf: &TrapFrame) {
-    crate::trap::handle_irq_extern(0, false);
+    crate::trap::handle_irq(0, false);
 }
 
 #[no_mangle]
@@ -124,11 +121,6 @@ fn handle_el0t_64_sync_exception(tf: &mut TrapFrame) {
 
     match esr.read_as_enum(ESR_EL1::EC) {
         Some(ESR_EL1::EC::Value::SVC64) => {
-            info!(
-                "task: {:p} into svc {}",
-                crate::cpu::current_task_ptr::<u8>(),
-                tf.r[8]
-            );
             enable_irqs();
             let result = handle_syscall(
                 tf.r[8],
@@ -144,7 +136,7 @@ fn handle_el0t_64_sync_exception(tf: &mut TrapFrame) {
         Some(ESR_EL1::EC::Value::InstrAbortLowerEL) => {
             let far = FAR_EL1.get() as usize;
             enable_irqs();
-            info!("data abort page fault at addr {:#x?}", far);
+            log::info!("data abort page fault at addr {:#x?}", far);
             super::mem_fault::el0_ia(far, esr.get(), tf);
         }
         _ => {
@@ -158,7 +150,7 @@ fn handle_el0t_64_sync_exception(tf: &mut TrapFrame) {
         }
     }
 
-    handle_signal();
+    handle_signals();
 
     disable_irqs();
 }
@@ -172,8 +164,8 @@ fn handle_el0t_64_sync_exception(tf: &mut TrapFrame) {
 #[no_mangle]
 #[cfg(feature = "monolithic")]
 fn handle_el0t_64_irq_exception(_tf: &TrapFrame) {
-    crate::trap::handle_irq_extern(0, true);
-    handle_signal();
+    crate::trap::handle_irq(0, true);
+    handle_signals();
 }
 
 #[no_mangle]
@@ -210,32 +202,4 @@ fn handle_el0t_32_fiq_exception(tf: &TrapFrame) {
 #[no_mangle]
 fn handle_el0t_32_error_exception(tf: &TrapFrame) {
     invalid_exception(tf, TrapKind::SError, TrapSource::LowerAArch32);
-}
-
-#[no_mangle]
-#[cfg(feature = "monolithic")]
-/// To handle the first time into the user space
-///
-/// 1. push the given trap frame into the kernel stack
-/// 2. go into the user space
-///
-/// args:
-///
-/// 1. kernel_sp: the top of the kernel stack
-///
-/// 2. frame_base: the address of the trap frame which will be pushed into the kernel stack
-pub fn first_into_user(kernel_sp: usize, frame_base: usize) -> ! {
-    let trap_frame_size = core::mem::size_of::<TrapFrame>();
-    let kernel_base = kernel_sp - trap_frame_size;
-    info!("frame_base sp {:#x} kernel_sp{:#x}", frame_base, kernel_sp);
-    // 在保证将寄存器都存储好之后，再开启中断
-    disable_irqs();
-    crate::arch::flush_tlb(None);
-    crate::arch::flush_icache_all();
-    //crate::arch::flush_dcache_all();
-    assert_eq!(kernel_base, frame_base);
-    unsafe {
-        ret_to_first_user(kernel_base);
-    };
-    core::panic!("already in user mode!")
 }

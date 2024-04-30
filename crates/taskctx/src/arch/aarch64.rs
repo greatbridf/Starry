@@ -1,13 +1,6 @@
 use core::arch::asm;
 use memory_addr::VirtAddr;
 
-/// The alignment of the stack.
-/// TODO:
-pub(crate) const STACK_ALIGN: usize = 16;
-
-/// PSR bits
-const PSR_MODE_EL0T: usize = 0x00000000;
-
 /// FP & SIMD registers.
 #[repr(C, align(16))]
 #[derive(Debug, Default)]
@@ -22,7 +15,7 @@ pub struct FpState {
 
 #[cfg(feature = "fp_simd")]
 impl FpState {
-    fn switch_to(&mut self, next_fpstate: &FpState) {
+    pub fn switch_to(&mut self, next_fpstate: &FpState) {
         unsafe { fpstate_switch(self, next_fpstate) }
     }
 }
@@ -76,7 +69,12 @@ impl TaskContext {
 }
 
 #[naked]
-unsafe extern "C" fn context_switch(_current_task: &mut TaskContext, _next_task: &TaskContext) {
+/// Switches the context from the current task to the next task.
+///
+/// # Safety
+///
+/// This function is unsafe because it directly manipulates the CPU registers.
+pub unsafe extern "C" fn context_switch(_current_task: &mut TaskContext, _next_task: &TaskContext) {
     asm!(
         "
         // save old context (callee-saved registers)

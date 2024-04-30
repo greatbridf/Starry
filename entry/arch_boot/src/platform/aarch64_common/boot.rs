@@ -1,6 +1,6 @@
-use crate::platform::mem::init_mmu;
 use aarch64_cpu::{asm, asm::barrier, registers::*};
 use axconfig::TASK_STACK_SIZE;
+use axhal::platform::mem::init_mmu;
 use tock_registers::interfaces::{ReadWriteable, Readable, Writeable};
 
 #[link_section = ".bss.stack"]
@@ -93,10 +93,10 @@ unsafe extern "C" fn _start() -> ! {
         enable_fp = sym enable_fp,
         boot_stack = sym BOOT_STACK,
         start = sym _start,
-        idmap_kernel = sym crate::platform::mem::idmap_kernel,
+        idmap_kernel = sym axhal::platform::mem::idmap_kernel,
         boot_stack_size = const TASK_STACK_SIZE,
         phys_virt_offset = const axconfig::PHYS_VIRT_OFFSET,
-        entry = sym crate::platform::rust_entry,
+        entry = sym super::rust_entry,
         options(noreturn),
     )
 }
@@ -127,7 +127,7 @@ unsafe extern "C" fn _start_secondary() -> ! {
         init_mmu = sym init_mmu,
         enable_fp = sym enable_fp,
         phys_virt_offset = const axconfig::PHYS_VIRT_OFFSET,
-        entry = sym crate::platform::rust_entry_secondary,
+        entry = sym super::rust_entry_secondary,
         options(noreturn),
     )
 }

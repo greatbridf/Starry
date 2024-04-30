@@ -26,7 +26,10 @@ extern crate axlog;
 mod lang_items;
 
 #[cfg(feature = "smp")]
-pub mod mp;
+mod mp;
+
+#[cfg(feature = "smp")]
+pub use self::mp::{entered_cpus_num, rust_main_secondary};
 
 const LOGO: &str = r#"
        d8888                            .d88888b.   .d8888b.

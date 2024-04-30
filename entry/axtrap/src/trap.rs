@@ -17,4 +17,4 @@ pub fn handle_irq(_irq_num: usize, _from_user: bool) {
 }
 
 #[cfg(feature = "monolithic")]
-pub use linux_syscall_api::trap::{handle_page_fault, handle_signals, handle_syscall, record_trap};
+pub use linux_syscall_api::trap::{handle_page_fault, handle_signals, handle_syscall};

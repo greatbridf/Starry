@@ -37,5 +37,5 @@ unsafe extern "C" fn rust_entry(cpu_id: usize, dtb: usize) {
 unsafe extern "C" fn rust_entry_secondary(cpu_id: usize) {
     axtrap::init_interrupt();
     axhal::cpu::init_secondary(cpu_id);
-    axruntime::mp::rust_main_secondary(cpu_id);
+    axruntime::rust_main_secondary(cpu_id);
 }

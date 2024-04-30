@@ -101,7 +101,7 @@ impl TlsArea {
         let area_base = unsafe { alloc::alloc::alloc_zeroed(layout) };
         log::info!("layout size: {}", layout.size());
         let tls_load_base = start as *mut u8;
-        let tls_load_size = end as usize - start as usize;
+        let tls_load_size = end - start;
         unsafe {
             // copy data from .tbdata section
             core::ptr::copy_nonoverlapping(
@@ -126,8 +126,8 @@ fn static_tls_size(start: usize, end: usize) -> usize {
     log::info!(
         "static_tls_size: {} end: {:X} start: {:X} ",
         ans,
-        end as usize,
-        start as usize
+        end,
+        start,
     );
     ans
 }

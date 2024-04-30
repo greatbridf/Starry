@@ -18,7 +18,7 @@ pub(crate) fn start_secondary_cpus(primary_cpu_id: usize) {
             logic_cpu_id += 1;
 
             loop {
-                if axruntime::mp::entered_cpus_num() > logic_cpu_id {
+                if axruntime::entered_cpus_num() > logic_cpu_id {
                     break;
                 }
             }

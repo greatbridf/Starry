@@ -174,14 +174,14 @@ impl CURRENT_TASK_PTR_WRAPPER {
                     "lui {0}, %hi({VAR})", 
                     "add {0}, {0}, gp", 
                     "sd {1}, %lo({VAR})({0})", 
-                    out(reg) _, in(reg) val as usize, 
+                    out(reg) _, in(reg) val, 
                     VAR = sym __PERCPU_CURRENT_TASK_PTR,);
             }
             #[cfg(target_arch = "x86_64")]
             {
                 core::arch::asm!(
                     "mov qword ptr gs:[offset {VAR}], {0:r}", 
-                    in(reg) val as usize,
+                    in(reg) val,
                     VAR = sym __PERCPU_CURRENT_TASK_PTR
                 )
             }

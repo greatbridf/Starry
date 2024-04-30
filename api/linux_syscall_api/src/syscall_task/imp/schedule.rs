@@ -39,7 +39,7 @@ pub fn syscall_sched_getaffinity(args: [usize; 6]) -> SyscallResult {
             .lock()
             .iter()
             .find(|task| task.is_leader())
-            .map(Arc::clone)
+            .cloned()
             .unwrap()
     } else if pid == 0 {
         Arc::clone(current_task().as_task_ref())
@@ -92,7 +92,7 @@ pub fn syscall_sched_setaffinity(args: [usize; 6]) -> SyscallResult {
             .lock()
             .iter()
             .find(|task| task.is_leader())
-            .map(Arc::clone)
+            .cloned()
             .unwrap()
     } else if pid == 0 {
         Arc::clone(current_task().as_task_ref())
@@ -144,7 +144,7 @@ pub fn syscall_sched_setscheduler(args: [usize; 6]) -> SyscallResult {
             .lock()
             .iter()
             .find(|task| task.is_leader())
-            .map(Arc::clone)
+            .cloned()
             .unwrap()
     } else if pid == 0 {
         Arc::clone(current_task().as_task_ref())
@@ -209,7 +209,7 @@ pub fn syscall_sched_getscheduler(args: [usize; 6]) -> SyscallResult {
             .lock()
             .iter()
             .find(|task| task.is_leader())
-            .map(Arc::clone)
+            .cloned()
             .unwrap()
     } else if pid == 0 {
         Arc::clone(current_task().as_task_ref())

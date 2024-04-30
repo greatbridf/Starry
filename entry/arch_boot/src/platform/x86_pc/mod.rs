@@ -24,9 +24,9 @@ unsafe extern "C" fn rust_entry(magic: usize, _mbi: usize) {
         axlog::set_max_level(option_env!("AX_LOG").unwrap_or("")); // no effect if set `log-level-*` features
         #[cfg(feature = "alloc")]
         crate::alloc::init_allocator();
-        axhal::console::init();
-        axhal::x86_64::dtables::init_primary();
-        axhal::x86_64::time::init_early();
+        axhal::console::init_early();
+        axhal::platform::dtables::init_primary();
+        axhal::platform::time::init_early();
         let cpu_id = current_cpu_id();
         axruntime::rust_main(cpu_id, 0);
 
@@ -51,7 +51,7 @@ unsafe extern "C" fn rust_entry_secondary(magic: usize) {
     if magic == self::boot::MULTIBOOT_BOOTLOADER_MAGIC {
         axtrap::init_interrupt();
         axhal::cpu::init_secondary(current_cpu_id());
-        axhal::x86_64::dtables::init_secondary();
-        axruntime::mp::rust_main_secondary(current_cpu_id());
+        axhal::platform::dtables::init_secondary();
+        axruntime::rust_main_secondary(current_cpu_id());
     }
 }

@@ -231,6 +231,15 @@ pub fn handle_signals() {
     if action.sa_flags.contains(SigActionFlags::SA_SIGINFO) {
         // current_task.set_siginfo(true);
         signal_module.sig_info = true;
+        let sp_base = (((sp - core::mem::size_of::<SigInfo>()) & !0xf)
+            - core::mem::size_of::<SignalUserContext>())
+            & !0xf;
+
+        // TODO: 统一为访问用户空间的操作封装函数
+        process
+            .manual_alloc_range_for_lazy(sp_base.into(), sp.into())
+            .expect("Failed to alloc memory for signal user stack");
+
         // 注意16字节对齐
         sp = (sp - core::mem::size_of::<SigInfo>()) & !0xf;
         let info = SigInfo {

@@ -2,9 +2,9 @@ use tock_registers::interfaces::Readable;
 use tock_registers::register_bitfields;
 
 use crate::trap::handle_page_fault;
-use page_table_entry::MappingFlags;
+use linux_syscall_api::trap::MappingFlags;
 
-use super::TrapFrame;
+use axhal::arch::TrapFrame;
 
 register_bitfields! { u64,
     pub ESR_EL1_WRAPPER [
@@ -47,11 +47,11 @@ impl Readable for EsrReg {
 fn do_page_fault(far: usize, esr: EsrReg) {
     match esr.read_as_enum(ESR_EL1_WRAPPER::WNR) {
         Some(ESR_EL1_WRAPPER::WNR::Value::READ_FAULT) => {
-            info!("EL0 data read abort ");
+            log::info!("EL0 data read abort ");
             handle_page_fault(far.into(), MappingFlags::USER | MappingFlags::READ);
         }
         Some(ESR_EL1_WRAPPER::WNR::Value::WRITE_FAULT) => {
-            info!("EL0 data write abort");
+            log::info!("EL0 data write abort");
             handle_page_fault(far.into(), MappingFlags::USER | MappingFlags::WRITE);
         }
         _ => {
@@ -67,14 +67,14 @@ pub fn el0_ia(far: usize, esr: u64, tf: &TrapFrame) {
         | Some(ESR_EL1_WRAPPER::DFSC::Value::LEVEL1_TRANS_FAULT)
         | Some(ESR_EL1_WRAPPER::DFSC::Value::LEVEL2_TRANS_FAULT)
         | Some(ESR_EL1_WRAPPER::DFSC::Value::LEVEL3_TRANS_FAULT) => {
-            info!("EL0 instruction fault");
+            log::info!("EL0 instruction fault");
             handle_page_fault(far.into(), MappingFlags::USER | MappingFlags::EXECUTE);
         }
         Some(ESR_EL1_WRAPPER::DFSC::Value::LEVEL0_PERMISSION_FAULT)
         | Some(ESR_EL1_WRAPPER::DFSC::Value::LEVEL1_PERMISSION_FAULT)
         | Some(ESR_EL1_WRAPPER::DFSC::Value::LEVEL2_PERMISSION_FAULT)
         | Some(ESR_EL1_WRAPPER::DFSC::Value::LEVEL3_PERMISSION_FAULT) => {
-            info!("EL0 permisiion fault");
+            log::info!("EL0 permisiion fault");
             handle_page_fault(far.into(), MappingFlags::USER | MappingFlags::EXECUTE);
         }
         _ => {
@@ -92,14 +92,14 @@ pub fn el0_da(far: usize, esr: u64, tf: &TrapFrame) {
     let esr_wrapper = EsrReg(esr);
     match esr_wrapper.read_as_enum(ESR_EL1_WRAPPER::DFSC) {
         Some(ESR_EL1_WRAPPER::DFSC::Value::LEVEL3_TRANS_FAULT) => {
-            info!("EL0 data abort  l3 fault");
+            log::info!("EL0 data abort  l3 fault");
             do_page_fault(far, esr_wrapper);
         }
         Some(ESR_EL1_WRAPPER::DFSC::Value::LEVEL0_PERMISSION_FAULT)
         | Some(ESR_EL1_WRAPPER::DFSC::Value::LEVEL1_PERMISSION_FAULT)
         | Some(ESR_EL1_WRAPPER::DFSC::Value::LEVEL2_PERMISSION_FAULT)
         | Some(ESR_EL1_WRAPPER::DFSC::Value::LEVEL3_PERMISSION_FAULT) => {
-            info!("EL0 permisiion fault");
+            log::info!("EL0 permisiion fault");
             do_page_fault(far, esr_wrapper);
         }
         _ => {

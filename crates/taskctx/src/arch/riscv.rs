@@ -85,6 +85,11 @@ core::arch::global_asm!(
 );
 
 #[naked]
+/// Switches the context from the current task to the next task.
+///
+/// # Safety
+///
+/// This function is unsafe because it directly manipulates the CPU registers.
 pub unsafe extern "C" fn context_switch(_current_task: &mut TaskContext, _next_task: &TaskContext) {
     asm!(
         "

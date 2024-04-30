@@ -1,3 +1,4 @@
+//! Runtime main function for secondary CPUs.
 use core::sync::atomic::{AtomicUsize, Ordering};
 
 static ENTERED_CPUS: AtomicUsize = AtomicUsize::new(1);
@@ -6,7 +7,7 @@ static ENTERED_CPUS: AtomicUsize = AtomicUsize::new(1);
 ///
 /// It is called from the bootstrapping code in [axhal].
 #[no_mangle]
-pub extern "C" fn rust_main_secondary(cpu_id: usize) -> ! {
+pub fn rust_main_secondary(cpu_id: usize) -> ! {
     ENTERED_CPUS.fetch_add(1, Ordering::Relaxed);
 
     info!("Secondary CPU {:x} started.", cpu_id);
@@ -44,10 +45,3 @@ pub extern "C" fn rust_main_secondary(cpu_id: usize) -> ! {
 pub fn entered_cpus_num() -> usize {
     ENTERED_CPUS.load(Ordering::Acquire)
 }
-
-// /// Whether the primary CPU has been initialized.
-// ///
-// /// Only after the primary CPU has been initialized, the secondary CPUs can be started.
-// fn init_cpu_num() -> usize {
-//     super::INITED_CPUS.load(Ordering::Acquire)
-// }

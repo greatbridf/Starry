@@ -44,11 +44,13 @@ pub struct ExtendedState {
 
 #[cfg(feature = "fp_simd")]
 impl ExtendedState {
+    /// Saves the FP/SIMD states to the memory region.
     #[inline]
     pub fn save(&mut self) {
         unsafe { core::arch::x86_64::_fxsave64(&mut self.fxsave_area as *mut _ as *mut u8) }
     }
 
+    /// Restores the FP/SIMD states from the memory region.
     #[inline]
     pub fn restore(&self) {
         unsafe { core::arch::x86_64::_fxrstor64(&self.fxsave_area as *const _ as *const u8) }
@@ -139,6 +141,11 @@ impl TaskContext {
 }
 
 #[naked]
+/// Switches the context from the current task to the next task.
+///
+/// # Safety
+///
+/// This function is unsafe because it directly manipulates the CPU registers.
 pub unsafe extern "C" fn context_switch(_current_stack: &mut u64, _next_stack: &u64) {
     asm!(
         "
