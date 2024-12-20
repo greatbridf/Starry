@@ -1,4 +1,9 @@
-use core::ffi::c_int;
+use core::ffi::{c_char, c_int};
+
+use axerrno::LinuxError;
+use axfs::api::set_current_dir;
+
+use crate::utils::char_ptr_to_str;
 
 /// Relinquish the CPU, and switches to another task.
 ///
@@ -37,4 +42,14 @@ pub fn sys_exit(exit_code: c_int) -> ! {
     axtask::exit(exit_code);
     #[cfg(not(feature = "multitask"))]
     axhal::misc::terminate();
+}
+
+/// Set working path of the current task
+pub fn sys_chdir(pathname: *const c_char) -> i32 {
+    syscall_body!(sys_chdir, {
+        let pathname = char_ptr_to_str(pathname)?;
+        set_current_dir(pathname)
+            .map(|_| 0)
+            .map_err(LinuxError::from)
+    })
 }
