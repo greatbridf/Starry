@@ -1,4 +1,5 @@
 use alloc::{boxed::Box, string::String, sync::Arc};
+use axns::{AxNamespace, AxNamespaceIf};
 use core::ops::Deref;
 use core::sync::atomic::{AtomicBool, AtomicI32, AtomicU64, AtomicU8, Ordering};
 use core::{alloc::Layout, cell::UnsafeCell, fmt, ptr::NonNull};
@@ -13,7 +14,7 @@ use axhal::arch::TaskContext;
 use memory_addr::{align_up_4k, VirtAddr};
 
 use crate::task_ext::AxTaskExt;
-use crate::{AxRunQueue, AxTask, AxTaskRef, WaitQueue};
+use crate::{current, AxRunQueue, AxTask, AxTaskRef, WaitQueue};
 
 /// A unique identifier for a thread.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -57,6 +58,18 @@ pub struct TaskInner {
 
     #[cfg(feature = "tls")]
     tls: TlsArea,
+
+    #[cfg(feature = "thread-local")]
+    namespace: AxNamespace,
+}
+
+struct AxNamespaceImpl;
+
+#[crate_interface::impl_interface]
+impl AxNamespaceIf for AxNamespaceImpl {
+    fn current_namespace_base() -> *mut u8 {
+        current().namespace.base()
+    }
 }
 
 impl TaskId {
@@ -185,6 +198,8 @@ impl TaskInner {
             task_ext: AxTaskExt::empty(),
             #[cfg(feature = "tls")]
             tls: TlsArea::alloc(),
+            #[cfg(feature = "thread-local")]
+            namespace: AxNamespace::new_thread_local(),
         }
     }
 

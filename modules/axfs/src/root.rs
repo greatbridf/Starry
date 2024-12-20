@@ -185,7 +185,13 @@ pub(crate) fn init_rootfs(disk: crate::dev::Disk) {
         .expect("fail to mount sysfs at /sys");
 
     ROOT_DIR.init_once(Arc::new(root_dir));
+    CURRENT_DIR
+        .deref_global()
+        .init_new(Mutex::new(ROOT_DIR.clone()));
     CURRENT_DIR.init_new(Mutex::new(ROOT_DIR.clone()));
+    CURRENT_DIR_PATH
+        .deref_global()
+        .init_new(Mutex::new("/".into()));
     CURRENT_DIR_PATH.init_new(Mutex::new("/".into()));
 }
 
