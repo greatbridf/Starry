@@ -174,6 +174,9 @@ run: build justrun
 justrun:
 	$(call run_qemu)
 
+justdebugrun:
+	$(call run_qemu_debug)
+
 debug: build
 	$(call run_qemu_debug) &
 	sleep 1

@@ -1,6 +1,10 @@
 #![allow(dead_code)]
 #![allow(unused_macros)]
 
+mod path;
+
+pub use path::*;
+
 use axerrno::{LinuxError, LinuxResult};
 use core::ffi::{c_char, CStr};
 

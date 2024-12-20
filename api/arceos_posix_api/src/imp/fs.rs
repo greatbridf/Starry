@@ -7,7 +7,10 @@ use axio::{PollState, SeekFrom};
 use axsync::Mutex;
 
 use super::fd_ops::{get_file_like, FileLike};
-use crate::{ctypes, utils::char_ptr_to_str};
+use crate::{
+    ctypes::{self, mode_t, AT_FDCWD},
+    utils::char_ptr_to_str,
+};
 
 pub struct File {
     inner: Mutex<axfs::fops::File>,
@@ -214,4 +217,20 @@ pub fn sys_rename(old: *const c_char, new: *const c_char) -> c_int {
         axfs::api::rename(old_path, new_path)?;
         Ok(0)
     })
+}
+
+pub fn sys_mkdir(pathname: *const c_char, _mode: mode_t) -> i32 {
+    syscall_body!(sys_mkdir, {
+        let pathname = char_ptr_to_str(pathname)?;
+        axfs::api::create_dir(pathname)
+            .map(|_| 0)
+            .map_err(LinuxError::from)
+    })
+}
+
+pub fn sys_mkdirat(dfd: i32, pathname: *const c_char, _mode: mode_t) -> i32 {
+    if dfd != AT_FDCWD {
+        unimplemented!();
+    }
+    sys_mkdir(pathname, _mode)
 }

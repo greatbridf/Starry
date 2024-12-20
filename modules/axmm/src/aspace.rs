@@ -277,6 +277,10 @@ impl AddrSpace {
         }
         false
     }
+
+    pub fn overlap(&self, range: VirtAddrRange) -> bool {
+        self.areas.overlaps(range)
+    }
 }
 
 impl fmt::Debug for AddrSpace {
