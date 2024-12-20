@@ -46,6 +46,9 @@ pub fn sys_exit(exit_code: c_int) -> ! {
 
 /// Set working path of the current task
 pub fn sys_chdir(pathname: *const c_char) -> i32 {
+    // TODO: The current implementation is PROBLEMATIC!!!
+    //       The namespaces are not isolated AT ALL.
+    //       All the threads share the same CURRENT_DIR and CURRENT_DIR_PATH variables.
     syscall_body!(sys_chdir, {
         let pathname = char_ptr_to_str(pathname)?;
         set_current_dir(pathname)

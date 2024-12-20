@@ -1,8 +1,11 @@
 use alloc::sync::Arc;
-use core::ffi::{c_char, c_int};
+use core::{
+    f32::consts::E,
+    ffi::{c_char, c_int},
+};
 
 use axerrno::{LinuxError, LinuxResult};
-use axfs::fops::OpenOptions;
+use axfs::fops::{Directory, OpenOptions};
 use axio::{PollState, SeekFrom};
 use axsync::Mutex;
 
@@ -78,6 +81,60 @@ impl FileLike for File {
     }
 }
 
+pub struct PathPosition {
+    directory: axfs::fops::Directory,
+}
+
+impl PathPosition {
+    fn new(directory: axfs::fops::Directory) -> Self {
+        Self { directory }
+    }
+
+    fn add_to_fd_table(self) -> LinuxResult<c_int> {
+        super::fd_ops::add_file_like(Arc::new(self))
+    }
+}
+
+impl FileLike for PathPosition {
+    fn read(&self, buf: &mut [u8]) -> LinuxResult<usize> {
+        Err(LinuxError::EBADF)
+    }
+
+    fn write(&self, buf: &[u8]) -> LinuxResult<usize> {
+        Err(LinuxError::EBADF)
+    }
+
+    fn stat(&self) -> LinuxResult<ctypes::stat> {
+        let metadata = self.directory.get_attr()?;
+        let ty = metadata.file_type() as u8;
+        let perm = metadata.perm().bits() as u32;
+        let st_mode = ((ty as u32) << 12) | perm;
+        Ok(ctypes::stat {
+            st_ino: 1,
+            st_nlink: 1,
+            st_mode,
+            st_uid: 1000,
+            st_gid: 1000,
+            st_size: metadata.size() as _,
+            st_blocks: metadata.blocks() as _,
+            st_blksize: 512,
+            ..Default::default()
+        })
+    }
+
+    fn into_any(self: Arc<Self>) -> Arc<dyn core::any::Any + Send + Sync> {
+        self
+    }
+
+    fn poll(&self) -> LinuxResult<PollState> {
+        Err(LinuxError::EBADF)
+    }
+
+    fn set_nonblocking(&self, nonblocking: bool) -> LinuxResult {
+        Err(LinuxError::EBADF)
+    }
+}
+
 /// Convert open flags to [`OpenOptions`].
 fn flags_to_options(flags: c_int, _mode: ctypes::mode_t) -> OpenOptions {
     let flags = flags as u32;
@@ -111,11 +168,18 @@ fn flags_to_options(flags: c_int, _mode: ctypes::mode_t) -> OpenOptions {
 /// has the maximum number of files open.
 pub fn sys_open(filename: *const c_char, flags: c_int, mode: ctypes::mode_t) -> c_int {
     let filename = char_ptr_to_str(filename);
-    debug!("sys_open <= {:?} {:#o} {:#o}", filename, flags, mode);
+    warn!("sys_open <= {:?} {:#o} {:#o}", filename, flags, mode);
     syscall_body!(sys_open, {
-        let options = flags_to_options(flags, mode);
-        let file = axfs::fops::File::open(filename?, &options)?;
-        File::new(file).add_to_fd_table()
+        if flags & ctypes::O_PATH as i32 != 0 {
+            let mut options = OpenOptions::new();
+            options.read(true);
+            let dir = axfs::fops::Directory::open_dir(filename?, &options)?;
+            PathPosition::new(dir).add_to_fd_table()
+        } else {
+            let options = flags_to_options(flags, mode);
+            let file = axfs::fops::File::open(filename?, &options)?;
+            File::new(file).add_to_fd_table()
+        }
     })
 }
 
