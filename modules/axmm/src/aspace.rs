@@ -9,7 +9,7 @@ use memory_addr::{
 use memory_set::{MemoryArea, MemorySet};
 
 use crate::backend::Backend;
-use crate::mapping_err_to_ax_err;
+use crate::{mapping_err_to_ax_err, new_user_aspace};
 
 /// The virtual memory address space.
 pub struct AddrSpace {
@@ -280,6 +280,24 @@ impl AddrSpace {
 
     pub fn overlap(&self, range: VirtAddrRange) -> bool {
         self.areas.overlaps(range)
+    }
+
+    pub fn new_cloned(&self) -> AxResult<Self> {
+        let mut aspace = new_user_aspace(self.base(), self.size())?;
+        for area in self.areas.iter() {
+            let area = MemoryArea::new(
+                area.start(),
+                area.size(),
+                area.flags(),
+                area.backend().clone(),
+            );
+            aspace
+                .areas
+                .map(area, &mut aspace.pt, false)
+                .expect("No area should be overlapping in the new address space");
+        }
+
+        Ok(aspace)
     }
 }
 
