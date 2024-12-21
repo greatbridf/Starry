@@ -1,5 +1,6 @@
 use core::fmt;
 
+use alloc::vec::Vec;
 use axerrno::{ax_err, AxError, AxResult};
 use axhal::mem::phys_to_virt;
 use axhal::paging::{MappingFlags, PageTable};
@@ -285,16 +286,18 @@ impl AddrSpace {
     pub fn new_cloned(&self) -> AxResult<Self> {
         let mut aspace = new_user_aspace(self.base(), self.size())?;
         for area in self.areas.iter() {
-            let area = MemoryArea::new(
-                area.start(),
-                area.size(),
-                area.flags(),
-                area.backend().clone(),
-            );
+            let start = area.start();
+            let size = area.size();
+
+            let area = MemoryArea::new(start, size, area.flags(), area.backend().clone());
             aspace
                 .areas
                 .map(area, &mut aspace.pt, false)
                 .expect("No area should be overlapping in the new address space");
+            let mut buffer = Vec::with_capacity(size);
+            buffer.resize(size, 0u8);
+            self.read(start, &mut buffer).unwrap();
+            aspace.write(start, &buffer).unwrap();
         }
 
         Ok(aspace)
